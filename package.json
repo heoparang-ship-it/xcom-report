@@ -1,0 +1,14 @@
+{
+  "name": "xcom-performance-report",
+  "version": "1.0.0",
+  "description": "XCOM Naver Search Ads Performance Report",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
