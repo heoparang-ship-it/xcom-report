@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네이버 검색광고 성과 보고서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface-2: #F5F5F7;
+  --border: #E8E8EC;
+  --border-light: #F0F0F3;
+  --primary: #1A1A1A;
+  --primary-light: #333333;
+  --accent: #2563EB;
+  --accent-light: #EFF6FF;
+  --green: #059669;
+  --green-light: #ECFDF5;
+  --amber: #D97706;
+  --amber-light: #FFFBEB;
+  --rose: #E11D48;
+  --rose-light: #FFF1F2;
+  --text: #111111;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'Noto Sans KR', sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: 200ms ease;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app { max-width: 1360px; margin: 0 auto; }
+
+/* ===== HEADER ===== */
+.header {
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.header-logo {
+  width: 32px; height: 32px;
+  background: var(--primary);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-display);
+}
+.header-title { font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: -0.02em; }
+.header-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.header-actions { display: flex; gap: 8px; }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  display: flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--surface-2); color: var(--text); border-color: #D1D5DB; }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-light); }
+
+/* ===== UPLOAD ===== */
+.upload-section {
+  max-width: 640px;
+  margin: 100px auto;
+  padding: 0 24px;
+  text-align: center;
+}
+.upload-hero-title {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.upload-desc {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 40px;
+  line-height: 1.7;
+}
+.upload-zone {
+  border: 1.5px dashed #D1D5DB;
+  border-radius: var(--radius);
+  padding: 48px 32px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.upload-icon {
+  width: 48px; height: 48px;
+  margin: 0 auto 16px;
+  background: var(--surface-2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.upload-icon svg { width: 20px; height: 20px; color: var(--text-muted); }
+.upload-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.upload-hint { font-size: 12px; color: var(--text-muted); }
+.file-input { display: none; }
+
+.file-list { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.file-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text);
+}
+.file-chip-remove {
+  cursor: pointer; color: var(--text-muted); font-size: 14px; line-height: 1;
+  transition: var(--transition);
+}
+.file-chip-remove:hover { color: var(--rose); }
+
+.analyze-btn-wrap { margin-top: 24px; }
+.btn-analyze {
+  padding: 12px 40px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: var(--font-body);
+}
+.btn-analyze:hover { background: #333; }
+.btn-analyze:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ===== LOADING ===== */
+.loading-section { display: none; text-align: center; padding: 120px 24px; }
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 16px;
+}
+.loading-text { color: var(--text-secondary); font-size: 13px; }
+
+/* ===== DASHBOARD ===== */
+.dashboard { display: none; padding: 28px 32px 80px; }
+
+.report-header {
+  margin-bottom: 28px;
+  display: flex; justify-content: space-between; align-items: flex-end;
+}
+.report-title { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
+.report-period { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.report-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px;
+  background: var(--green-light);
+  color: var(--green);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* KPI */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: var(--transition);
+}
+.kpi-card:hover { border-color: var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.kpi-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+.kpi-value {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+}
+.kpi-change {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.kpi-change.up { color: var(--green); background: var(--green-light); }
+.kpi-change.stable { color: var(--amber); background: var(--amber-light); }
+.kpi-change.info { color: var(--accent); background: var(--accent-light); }
+
+/* Charts */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.chart-card.full { grid-column: 1 / -1; }
+.chart-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.chart-subtitle { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+.chart-container { position: relative; height: 260px; }
+
+/* Table */
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  text-align: left; padding: 10px 14px;
+  font-weight: 600; color: var(--text-muted);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text);
+  white-space: nowrap;
+}
+tbody tr:hover { background: var(--surface-2); }
+.cell-name { font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.cell-bar { display: flex; align-items: center; gap: 6px; }
+.cell-bar-track { width: 60px; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+.cell-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+/* Watermark */
+.watermark {
+  position: fixed;
+  bottom: 16px;
+  right: 24px;
+  font-size: 11px;
+  color: #D1D5DB;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  z-index: 50;
+  pointer-events: none;
+}
+.watermark-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.watermark-bar {
+  width: 16px; height: 2px; background: #D1D5DB; border-radius: 1px;
+}
+
+/* Exec Summary */
+.exec-summary {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.exec-summary-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.exec-summary-text {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--text);
+  font-weight: 400;
+}
+.exec-summary-text strong { font-weight: 700; }
+.exec-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--border-light);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 20px;
+}
+.exec-metric {
+  background: var(--surface-2);
+  padding: 14px 16px;
+  text-align: center;
+}
+.exec-metric-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+.exec-metric-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+/* Insights */
+.insights-section { margin-top: 24px; }
+.insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.insight-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: var(--transition);
+}
+.insight-card:hover { border-color: var(--border); }
+.insight-dot {
+  width: 8px; height: 8px; border-radius: 50%; margin-bottom: 12px;
+}
+.insight-dot.green { background: var(--green); }
+.insight-dot.blue { background: var(--accent); }
+.insight-dot.amber { background: var(--amber); }
+.insight-dot.rose { background: var(--rose); }
+.insight-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.insight-body { font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeUp 0.4s ease forwards; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header { padding: 14px 16px; }
+  .chart-row { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .dashboard { padding: 16px 16px 60px; }
+  .report-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+
+/* Print */
+@media print {
+  .header, .upload-section, .btn { display: none; }
+  .dashboard { display: block !important; padding: 0; }
+  .kpi-card, .chart-card, .insight-card, .exec-summary { break-inside: avoid; border: 1px solid #ddd; }
+  body { background: #fff; }
+  .watermark { position: static; text-align: right; padding: 8px 0; border-top: 1px solid #eee; margin-top: 24px; }
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">N</div>
+      <div>
+        <div class="header-title">검색광고 성과 리포트</div>
+        <div class="header-subtitle">Naver Search Ads Performance</div>
+      </div>
+    </div>
+    <div class="header-actions" id="headerActions" style="display:none;">
+      <button class="btn" onclick="resetAll()">새 보고서</button>
+      <button class="btn btn-primary" onclick="window.print()">인쇄</button>
+    </div>
+  </header>
+
+  <section class="upload-section" id="uploadSection">
+    <h1 class="upload-hero-title">Ad Report</h1>
+    <p class="upload-desc">
+      네이버 검색광고 다차원 보고서를 업로드하면<br>
+      퍼포먼스 마케터 관점의 성과 분석 리포트를 자동 생성합니다.
+    </p>
+    <div class="upload-zone" id="uploadZone">
+      <div class="upload-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+      </div>
+      <div class="upload-label">파일을 드래그하거나 클릭하여 업로드</div>
+      <div class="upload-hint">CSV, XLS, XLSX · 여러 파일 동시 업로드 가능</div>
+      <input type="file" class="file-input" id="fileInput" multiple accept=".csv,.xls,.xlsx,.tsv">
+    </div>
+    <div class="file-list" id="fileList"></div>
+    <div class="analyze-btn-wrap">
+      <button class="btn-analyze" id="analyzeBtn" disabled onclick="startAnalysis()">분석 시작</button>
+    </div>
+  </section>
+
+  <section class="loading-section" id="loadingSection">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">보고서를 분석하고 있습니다</div>
+  </section>
+
+  <!-- Watermark -->
+  <div class="watermark" id="watermark" style="display:none;">
+    <div class="watermark-inner">
+      <span class="watermark-bar"></span>
+      <span>XCOM Performance Report</span>
+    </div>
+  </div>
+
+  <section class="dashboard" id="dashboard">
+    <div class="report-header">
+      <div>
+        <h2 class="report-title" id="reportTitle">캠페인 성과 종합 리포트</h2>
+        <div class="report-period" id="reportPeriod"></div>
+      </div>
+      <div class="report-badge" id="reportBadge">성과 양호</div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="exec-summary" id="execSummary">
+      <div class="exec-summary-label">Executive Summary</div>
+      <div class="exec-summary-text" id="execText"></div>
+      <div class="exec-metrics" id="execMetrics"></div>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title">일별 광고비 · 전환수 추이</div>
+        <div class="chart-subtitle">비용 대비 성과의 밸런스</div>
+        <div class="chart-container"><canvas id="chartTrend"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">캠페인별 비중</div>
+        <div class="chart-subtitle">광고비 기준 캠페인 구성</div>
+        <div class="chart-container"><canvas id="chartPie"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title">클릭률(CTR) 추이</div>
+        <div class="chart-subtitle">광고 소재 매력도 지표</div>
+        <div class="chart-container"><canvas id="chartCTR"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">클릭당비용(CPC) 추이</div>
+        <div class="chart-subtitle">입찰 효율성 흐름</div>
+        <div class="chart-container"><canvas id="chartCPC"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card full" style="margin-bottom:12px;">
+      <div class="chart-title">캠페인별 상세 성과</div>
+      <div class="chart-subtitle">핵심 지표 비교</div>
+      <div class="table-wrap" id="campaignTable"></div>
+    </div>
+
+    <div class="chart-card full" style="margin-bottom:12px;">
+      <div class="chart-title">키워드 TOP 20</div>
+      <div class="chart-subtitle">클릭 기준 상위 키워드</div>
+      <div class="table-wrap" id="keywordTable"></div>
+    </div>
+
+    <div class="insights-section">
+      <div class="chart-title" style="font-size:16px;margin-bottom:2px;">퍼포먼스 인사이트</div>
+      <div class="chart-subtitle" style="margin-bottom:16px;">데이터 기반 개선 방향</div>
+      <div class="insights-grid" id="insightsGrid"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+let uploadedFiles = [];
+let allData = [];
+let chartInstances = [];
+
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault(); uploadZone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  for (const file of files) {
+    if (uploadedFiles.find(f => f.name === file.name)) continue;
+    uploadedFiles.push(file);
+  }
+  renderFileList();
+}
+
+function renderFileList() {
+  fileList.innerHTML = uploadedFiles.map((f, i) =>
+    `<div class="file-chip"><span>${f.name}</span><span class="file-chip-remove" onclick="removeFile(${i})">&times;</span></div>`
+  ).join('');
+  analyzeBtn.disabled = uploadedFiles.length === 0;
+}
+
+function removeFile(idx) { uploadedFiles.splice(idx, 1); renderFileList(); }
+
+function parseFile(file) {
+  return new Promise((resolve, reject) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv' || ext === 'tsv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true, encoding: 'euc-kr',
+        complete: (result) => {
+          if (result.data.length === 0) {
+            Papa.parse(file, { header: true, skipEmptyLines: true, encoding: 'utf-8', complete: (r2) => resolve(r2.data), error: reject });
+          } else { resolve(result.data); }
+        }, error: reject
+      });
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const allRows = [];
+          wb.SheetNames.forEach(name => { allRows.push(...XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' })); });
+          resolve(allRows);
+        } catch(err) { reject(err); }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  });
+}
+
+function normalizeKey(k) { return (k||'').toString().trim().replace(/\s+/g,'').toLowerCase(); }
+
+function mapColumns(data) {
+  if (!data.length) return [];
+  const sampleKeys = Object.keys(data[0]);
+  const mapping = {};
+  const patterns = {
+    date: ['일별','일자','날짜','date','기간','보고일'],
+    campaign: ['캠페인','campaign','캠페인명','캠페인이름'],
+    adgroup: ['광고그룹','adgroup','그룹','광고그룹명'],
+    keyword: ['키워드','keyword','검색어','소재키워드'],
+    impressions: ['노출수','impressions','impr','노출'],
+    clicks: ['클릭수','clicks','클릭'],
+    cost: ['총비용','광고비','cost','비용','총비용(vat포함)','총비용(부가세포함)','광고비(vat포함)','사용금액'],
+    conversions: ['전환수','conversions','전환','목표전환수','총전환수'],
+    convValue: ['전환매출','전환매출액','전환가치','convvalue','conversionvalue','총전환매출'],
+    ctr: ['클릭률','ctr','클릭률(%)'],
+    cpc: ['평균클릭비용','cpc','클릭당비용','평균cpc'],
+    device: ['디바이스','device','pc/모바일','기기'],
+  };
+  for (const sk of sampleKeys) {
+    const nk = normalizeKey(sk);
+    for (const [field, pats] of Object.entries(patterns)) {
+      if (!mapping[field] && pats.some(p => nk.includes(normalizeKey(p)))) mapping[field] = sk;
+    }
+  }
+  return data.map(row => {
+    const m = {};
+    for (const [field, col] of Object.entries(mapping)) {
+      let val = row[col];
+      if (val === undefined || val === null || val === '') {
+        m[field] = ['date','campaign','adgroup','keyword','device'].includes(field) ? '' : 0;
+      } else if (['impressions','clicks','cost','conversions','convValue'].includes(field)) {
+        m[field] = parseNum(val);
+      } else if (['ctr','cpc'].includes(field)) {
+        m[field] = parseFloat(String(val).replace(/[%,]/g,'')) || 0;
+      } else {
+        m[field] = String(val).trim();
+      }
+    }
+    return m;
+  });
+}
+
+function parseNum(val) { return typeof val==='number' ? val : parseFloat(String(val).replace(/[,원₩\s%]/g,'')) || 0; }
+
+async function startAnalysis() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('loadingSection').style.display = 'block';
+  allData = [];
+  for (const file of uploadedFiles) {
+    try { const raw = await parseFile(file); allData.push(...mapColumns(raw)); } catch(e) { console.error(e); }
+  }
+  await new Promise(r => setTimeout(r, 600));
+  if (allData.length === 0) { alert('데이터를 읽을 수 없습니다. 파일 형식을 확인해주세요.'); resetAll(); return; }
+  document.getElementById('loadingSection').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('headerActions').style.display = 'flex';
+  document.getElementById('watermark').style.display = 'block';
+  renderDashboard();
+}
+
+function renderDashboard() {
+  chartInstances.forEach(c => c.destroy()); chartInstances = [];
+  const data = allData;
+
+  const totals = { impressions: 0, clicks: 0, cost: 0, conversions: 0, convValue: 0 };
+  data.forEach(r => {
+    totals.impressions += r.impressions||0; totals.clicks += r.clicks||0;
+    totals.cost += r.cost||0; totals.conversions += r.conversions||0; totals.convValue += r.convValue||0;
+  });
+
+  const ctr = totals.impressions ? (totals.clicks/totals.impressions*100) : 0;
+  const cpc = totals.clicks ? totals.cost/totals.clicks : 0;
+  const cpa = totals.conversions ? totals.cost/totals.conversions : 0;
+  const roas = totals.cost ? (totals.convValue/totals.cost*100) : 0;
+  const cvr = totals.clicks ? (totals.conversions/totals.clicks*100) : 0;
+
+  const dates = data.map(r => r.date).filter(d => d);
+  const uniqueDates = [...new Set(dates)].sort();
+  document.getElementById('reportPeriod').textContent = uniqueDates.length > 0
+    ? `${uniqueDates[0]} — ${uniqueDates[uniqueDates.length-1]}  (${uniqueDates.length}일)`
+    : `총 ${data.length.toLocaleString()}행`;
+
+  let badge = '성과 양호';
+  if (ctr >= 3 || roas >= 300) badge = '우수한 성과';
+  if (ctr >= 5 || roas >= 500) badge = '탁월한 성과';
+  document.getElementById('reportBadge').textContent = badge;
+
+  // Executive Summary
+  renderExecSummary(totals, ctr, cpc, cpa, roas, cvr, uniqueDates);
+
+  // KPI
+  const kpis = [
+    { label: '노출수', value: fmtN(totals.impressions), tag: '도달 확보', cls: 'up' },
+    { label: '클릭수', value: fmtN(totals.clicks), tag: '유입 확보', cls: 'up' },
+    { label: 'CTR', value: ctr.toFixed(2)+'%', tag: getCtrTag(ctr), cls: ctr>=2?'up':'stable' },
+    { label: '광고비', value: '₩'+fmtN(totals.cost), tag: '집행 중', cls: 'stable' },
+    { label: 'CPC', value: '₩'+fmtN(Math.round(cpc)), tag: getCpcTag(cpc), cls: cpc<=1000?'up':'stable' },
+    { label: '전환수', value: fmtN(totals.conversions), tag: totals.conversions>0?'전환 발생':'추적 설정 권장', cls: totals.conversions>0?'up':'info' },
+  ];
+  if (totals.convValue > 0) kpis.push({ label: 'ROAS', value: roas.toFixed(0)+'%', tag: roas>=300?'높은 수익성':'성장 중', cls: roas>=200?'up':'stable' });
+  if (totals.conversions > 0) kpis.push({ label: 'CPA', value: '₩'+fmtN(Math.round(cpa)), tag: cpa<=30000?'효율적':'최적화 가능', cls: cpa<=30000?'up':'stable' });
+
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k =>
+    `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-change ${k.cls}">${k.tag}</div></div>`
+  ).join('');
+
+  // Daily trend
+  if (uniqueDates.length > 1) {
+    const dm = {};
+    data.forEach(r => {
+      if (!r.date) return;
+      if (!dm[r.date]) dm[r.date] = {cost:0,clicks:0,conversions:0,impressions:0};
+      dm[r.date].cost += r.cost||0; dm[r.date].clicks += r.clicks||0;
+      dm[r.date].conversions += r.conversions||0; dm[r.date].impressions += r.impressions||0;
+    });
+    const labels = uniqueDates;
+
+    mkChart('chartTrend', {
+      type: 'bar',
+      data: {
+        labels: labels.map(shortDate),
+        datasets: [
+          { label: '광고비', data: labels.map(d => Math.round(dm[d]?.cost||0)),
+            backgroundColor: 'rgba(37,99,235,0.15)', borderColor: 'rgba(37,99,235,0.6)', borderWidth: 1, borderRadius: 3, yAxisID: 'y', order: 2 },
+          { label: '전환수', data: labels.map(d => dm[d]?.conversions||0), type: 'line',
+            borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.05)', borderWidth: 2, pointRadius: 2.5,
+            pointBackgroundColor: '#059669', fill: true, tension: 0.4, yAxisID: 'y1', order: 1 }
+        ]
+      },
+      options: chartOpts({ y: { position:'left' }, y1: { position:'right', grid:{display:false} } })
+    });
+
+    mkChart('chartCTR', {
+      type: 'line',
+      data: {
+        labels: labels.map(shortDate),
+        datasets: [{ label: 'CTR (%)', data: labels.map(d => { const i=dm[d]?.impressions||0, c=dm[d]?.clicks||0; return i ? +(c/i*100).toFixed(2) : 0; }),
+          borderColor: '#D97706', backgroundColor: 'rgba(217,119,6,0.04)', borderWidth: 2, pointRadius: 2.5, pointBackgroundColor: '#D97706', fill: true, tension: 0.4 }]
+      },
+      options: chartOpts({ y: {} })
+    });
+
+    mkChart('chartCPC', {
+      type: 'line',
+      data: {
+        labels: labels.map(shortDate),
+        datasets: [{ label: 'CPC (원)', data: labels.map(d => { const c=dm[d]?.clicks||0, co=dm[d]?.cost||0; return c ? Math.round(co/c) : 0; }),
+          borderColor: '#E11D48', backgroundColor: 'rgba(225,29,72,0.04)', borderWidth: 2, pointRadius: 2.5, pointBackgroundColor: '#E11D48', fill: true, tension: 0.4 }]
+      },
+      options: chartOpts({ y: {} })
+    });
+  }
+
+  // Campaign pie
+  const campMap = {};
+  data.forEach(r => {
+    const c = r.campaign || '(미분류)';
+    if (!campMap[c]) campMap[c] = {impressions:0,clicks:0,cost:0,conversions:0,convValue:0};
+    campMap[c].impressions += r.impressions||0; campMap[c].clicks += r.clicks||0;
+    campMap[c].cost += r.cost||0; campMap[c].conversions += r.conversions||0; campMap[c].convValue += r.convValue||0;
+  });
+  const campEntries = Object.entries(campMap).sort((a,b) => b[1].cost - a[1].cost);
+  const pieC = ['#2563EB','#059669','#D97706','#E11D48','#7C3AED','#0891B2','#EA580C','#4F46E5','#16A34A','#DC2626'];
+
+  if (campEntries.length > 0) {
+    mkChart('chartPie', {
+      type: 'doughnut',
+      data: {
+        labels: campEntries.slice(0,8).map(e => trunc(e[0],18)),
+        datasets: [{ data: campEntries.slice(0,8).map(e => e[1].cost), backgroundColor: pieC, borderWidth: 0, hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: {
+          legend: { position:'right', labels: { color:'#6B7280', font:{size:10,family:"'Noto Sans KR'"}, padding:10, usePointStyle:true, pointStyle:'circle' } },
+          tooltip: tooltipStyle({ label: ctx => ' ₩'+fmtN(ctx.parsed) })
+        }
+      }
+    });
+  }
+
+  // Campaign table
+  if (campEntries.length > 0) {
+    let h = `<table><thead><tr><th>캠페인</th><th>노출수</th><th>클릭수</th><th>CTR</th><th>광고비</th><th>CPC</th><th>전환수</th><th>비중</th></tr></thead><tbody>`;
+    campEntries.forEach(([name,d]) => {
+      const ct = d.impressions ? (d.clicks/d.impressions*100).toFixed(2) : '0.00';
+      const cp = d.clicks ? Math.round(d.cost/d.clicks) : 0;
+      const sh = totals.cost ? (d.cost/totals.cost*100) : 0;
+      h += `<tr><td class="cell-name" title="${name}">${trunc(name,28)}</td><td>${fmtN(d.impressions)}</td><td>${fmtN(d.clicks)}</td><td>${ct}%</td><td>₩${fmtN(d.cost)}</td><td>₩${fmtN(cp)}</td><td>${fmtN(d.conversions)}</td><td><div class="cell-bar"><div class="cell-bar-track"><div class="cell-bar-fill" style="width:${sh}%"></div></div>${sh.toFixed(1)}%</div></td></tr>`;
+    });
+    document.getElementById('campaignTable').innerHTML = h + '</tbody></table>';
+  }
+
+  // Keyword table
+  const kwMap = {};
+  data.forEach(r => {
+    if (!r.keyword) return;
+    if (!kwMap[r.keyword]) kwMap[r.keyword] = {impressions:0,clicks:0,cost:0,conversions:0};
+    kwMap[r.keyword].impressions += r.impressions||0; kwMap[r.keyword].clicks += r.clicks||0;
+    kwMap[r.keyword].cost += r.cost||0; kwMap[r.keyword].conversions += r.conversions||0;
+  });
+  const kwEntries = Object.entries(kwMap).sort((a,b) => b[1].clicks - a[1].clicks).slice(0,20);
+
+  if (kwEntries.length > 0) {
+    let h = `<table><thead><tr><th>#</th><th>키워드</th><th>노출수</th><th>클릭수</th><th>CTR</th><th>광고비</th><th>CPC</th><th>전환수</th></tr></thead><tbody>`;
+    kwEntries.forEach(([name,d],i) => {
+      const ct = d.impressions ? (d.clicks/d.impressions*100).toFixed(2) : '0.00';
+      const cp = d.clicks ? Math.round(d.cost/d.clicks) : 0;
+      h += `<tr><td>${i+1}</td><td class="cell-name" title="${name}">${trunc(name,22)}</td><td>${fmtN(d.impressions)}</td><td>${fmtN(d.clicks)}</td><td>${ct}%</td><td>₩${fmtN(d.cost)}</td><td>₩${fmtN(cp)}</td><td>${fmtN(d.conversions)}</td></tr>`;
+    });
+    document.getElementById('keywordTable').innerHTML = h + '</tbody></table>';
+  } else {
+    document.getElementById('keywordTable').innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:12px;">키워드 데이터가 포함되어 있지 않습니다.</p>';
+  }
+
+  // Insights
+  const insights = genInsights(totals, ctr, cpc, cpa, roas, cvr, campEntries, kwEntries, uniqueDates);
+  document.getElementById('insightsGrid').innerHTML = insights.map(ins =>
+    `<div class="insight-card"><div class="insight-dot ${ins.color}"></div><div class="insight-title">${ins.title}</div><div class="insight-body">${ins.body}</div></div>`
+  ).join('');
+}
+
+function renderExecSummary(totals, ctr, cpc, cpa, roas, cvr, dates) {
+  const period = dates.length > 0 ? `${dates[0]} ~ ${dates[dates.length-1]} (${dates.length}일)` : '';
+
+  // Build summary paragraphs
+  let summary = '';
+
+  // Overall performance assessment
+  if (ctr >= 5 || roas >= 500) {
+    summary += `분석 기간 동안 캠페인이 <strong>탁월한 성과</strong>를 기록하고 있습니다. `;
+  } else if (ctr >= 2 || roas >= 200) {
+    summary += `분석 기간 동안 캠페인이 <strong>안정적인 성과</strong>를 유지하고 있습니다. `;
+  } else {
+    summary += `분석 기간 동안 캠페인의 기반이 마련되었으며 <strong>성장 가능성이 확인</strong>됩니다. `;
+  }
+
+  // Traffic & reach
+  summary += `총 <strong>${fmtN(totals.impressions)}회</strong> 노출을 통해 브랜드 도달을 확보하였고, `;
+  summary += `<strong>${fmtN(totals.clicks)}회</strong>의 클릭으로 잠재 고객 유입이 이루어졌습니다. `;
+
+  // CTR assessment
+  if (ctr >= 3) {
+    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>는 광고 소재의 매력도가 높은 수준임을 보여줍니다. `;
+  } else if (ctr >= 1) {
+    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>로 안정적인 유입이 이루어지고 있으며, 소재 최적화를 통해 추가 개선이 가능합니다. `;
+  } else {
+    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>이며, 확장소재 추가와 소재 A/B 테스트를 통해 상승 여지가 충분합니다. `;
+  }
+
+  // Cost efficiency
+  summary += `총 광고비 <strong>₩${fmtN(totals.cost)}</strong>이 집행되었으며, 평균 CPC <strong>₩${fmtN(Math.round(cpc))}</strong>으로 `;
+  if (cpc <= 500) {
+    summary += `효율적인 클릭 단가를 유지하고 있습니다. `;
+  } else if (cpc <= 2000) {
+    summary += `합리적인 수준에서 유입을 확보하고 있습니다. `;
+  } else {
+    summary += `프리미엄 키워드 시장에서 경쟁력을 유지하고 있습니다. `;
+  }
+
+  // Conversions
+  if (totals.conversions > 0) {
+    summary += `<strong>${fmtN(totals.conversions)}건</strong>의 전환이 발생하여 광고 퍼널이 정상적으로 작동하고 있음을 확인하였습니다. `;
+    if (roas > 0) {
+      summary += `ROAS <strong>${roas.toFixed(0)}%</strong>로 `;
+      if (roas >= 300) {
+        summary += `투자 대비 수익성이 확보된 구조입니다.`;
+      } else {
+        summary += `수익 기반이 구축되고 있으며, 고성과 키워드 집중 배분으로 추가 개선이 기대됩니다.`;
+      }
+    }
+  } else {
+    summary += `전환 추적 설정을 보강하면 성과 측정의 정밀도를 한층 높일 수 있습니다.`;
+  }
+
+  document.getElementById('execText').innerHTML = summary;
+
+  // Exec metrics bar
+  const metrics = [
+    { label: '노출수', value: fmtN(totals.impressions) },
+    { label: '클릭수', value: fmtN(totals.clicks) },
+    { label: 'CTR', value: ctr.toFixed(2) + '%' },
+    { label: '광고비', value: '₩' + fmtN(totals.cost) },
+    { label: 'CPC', value: '₩' + fmtN(Math.round(cpc)) },
+  ];
+  if (totals.conversions > 0) metrics.push({ label: '전환수', value: fmtN(totals.conversions) });
+  if (roas > 0) metrics.push({ label: 'ROAS', value: roas.toFixed(0) + '%' });
+
+  document.getElementById('execMetrics').innerHTML = metrics.map(m =>
+    `<div class="exec-metric"><div class="exec-metric-label">${m.label}</div><div class="exec-metric-value">${m.value}</div></div>`
+  ).join('');
+}
+
+function genInsights(totals, ctr, cpc, cpa, roas, cvr, camps, kws, dates) {
+  const ins = [];
+
+  if (camps.length > 0) {
+    const t = camps[0];
+    const tc = t[1].impressions ? (t[1].clicks/t[1].impressions*100).toFixed(2) : 0;
+    ins.push({ color: 'green', title: `핵심 캠페인: ${trunc(t[0],18)}`,
+      body: `전체 광고비의 ${(totals.cost?t[1].cost/totals.cost*100:0).toFixed(1)}%를 운용하며 CTR ${tc}%로 안정적인 클릭 유입을 확보하고 있습니다. 집중 관리를 통해 더 좋은 성과가 기대됩니다.` });
+  }
+
+  if (ctr >= 5) {
+    ins.push({ color: 'green', title: `CTR ${ctr.toFixed(2)}% — 탁월한 소재 매력도`,
+      body: `업계 평균을 크게 상회하는 클릭률입니다. 광고 소재와 키워드 매칭이 잘 이루어지고 있으며, 유사 키워드 확장으로 성과를 더 키울 수 있습니다.` });
+  } else if (ctr >= 2) {
+    ins.push({ color: 'blue', title: `CTR ${ctr.toFixed(2)}% — 안정적 흐름`,
+      body: `건강한 수준의 클릭률을 유지하고 있습니다. 소재 문구 A/B 테스트와 확장소재 보강을 통해 한 단계 더 올릴 수 있는 기반이 마련되어 있습니다.` });
+  } else {
+    ins.push({ color: 'amber', title: `CTR ${ctr.toFixed(2)}% — 성장 잠재력`,
+      body: `노출이 충분히 확보된 상태입니다. 소재 제목에 혜택이나 숫자를 추가하고 확장소재(가격링크, 추가설명)를 보강하면 클릭률 개선으로 전체 효율이 올라갈 수 있습니다.` });
+  }
+
+  if (cpc > 0) {
+    ins.push({ color: 'blue', title: `평균 CPC ₩${fmtN(Math.round(cpc))}`,
+      body: cpc <= 500
+        ? '효율적인 클릭 단가를 유지하고 있습니다. 입찰 전략이 잘 세팅되어 있으며, 품질지수 관리를 병행하면 더 개선될 수 있습니다.'
+        : cpc <= 2000
+        ? '합리적인 범위의 CPC입니다. 품질지수 향상(소재 관련성, 랜딩페이지 최적화)에 집중하면 같은 예산으로 더 많은 클릭을 확보할 수 있습니다.'
+        : '프리미엄 키워드 시장에서 경쟁 중입니다. 롱테일 키워드를 보강하면 전체 평균 CPC를 최적화할 수 있습니다.'
+    });
+  }
+
+  if (totals.conversions > 0) {
+    ins.push({ color: 'green', title: `전환 ${fmtN(totals.conversions)}건 달성`,
+      body: cvr >= 3
+        ? `전환율 ${cvr.toFixed(2)}%로 우수한 퍼널을 구축하고 있습니다. 리마케팅 결합으로 전환을 더 끌어올릴 수 있습니다.`
+        : `전환이 꾸준히 발생하고 있어 퍼널이 작동하고 있습니다. 랜딩페이지 CTA 최적화와 폼 간소화로 전환율 향상을 기대할 수 있습니다.`
+    });
+  }
+
+  if (roas > 0) {
+    ins.push({ color: roas>=300?'green':'amber', title: `ROAS ${roas.toFixed(0)}%`,
+      body: roas >= 300
+        ? `광고비 대비 ${(roas/100).toFixed(1)}배의 매출을 만들어내고 있습니다. 예산을 단계적으로 확대하면 매출 스케일링이 가능합니다.`
+        : `매출 전환이 이루어지고 있어 긍정적입니다. 고성과 키워드에 예산을 집중 배분하고 전환율이 높은 시간대를 분석하면 ROAS를 끌어올릴 수 있습니다.`
+    });
+  }
+
+  if (kws.length > 0) {
+    ins.push({ color: 'rose', title: `핵심 키워드: ${trunc(kws[0][0],14)}`,
+      body: `클릭 ${fmtN(kws[0][1].clicks)}회로 가장 활발한 트래픽을 유입하는 키워드입니다. 검색 의도에 맞춘 전용 랜딩페이지를 연결하면 전환 효과를 극대화할 수 있습니다.` });
+  }
+
+  if (dates.length >= 7) {
+    ins.push({ color: 'blue', title: `${dates.length}일간 데이터 축적`,
+      body: `충분한 기간의 데이터가 확보되어 트렌드 분석 신뢰도가 높습니다. 요일별·시간대별 패턴을 파악하면 예산 배분의 정밀도를 높일 수 있습니다.` });
+  }
+
+  return ins;
+}
+
+// Helpers
+function getCtrTag(v) { return v>=5?'탁월':v>=2?'양호':'성장 잠재력'; }
+function getCpcTag(v) { return v<=500?'효율적':v<=1500?'합리적':'프리미엄'; }
+function fmtN(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function trunc(s,l) { return s.length>l ? s.slice(0,l)+'…' : s; }
+function shortDate(d) {
+  const m = String(d).match(/(\d{4})[-./]?(\d{2})[-./]?(\d{2})/);
+  return m ? `${m[2]}/${m[3]}` : String(d).slice(-5);
+}
+
+function mkChart(id, cfg) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const c = new Chart(ctx, cfg);
+  chartInstances.push(c);
+  return c;
+}
+
+function tooltipStyle(cbs) {
+  return {
+    tooltip: {
+      backgroundColor: '#fff', titleColor: '#111', bodyColor: '#6B7280',
+      borderColor: '#E8E8EC', borderWidth: 1, padding: 10, cornerRadius: 6,
+      titleFont: { family: "'Noto Sans KR'", weight: '600' },
+      bodyFont: { family: "'Noto Sans KR'" },
+      callbacks: cbs || {}
+    }
+  };
+}
+
+function chartOpts(scales) {
+  const base = {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#6B7280', font: { size: 10, family: "'Noto Sans KR'" }, usePointStyle: true, pointStyle: 'circle', padding: 14 } },
+      tooltip: {
+        backgroundColor: '#fff', titleColor: '#111', bodyColor: '#6B7280',
+        borderColor: '#E8E8EC', borderWidth: 1, padding: 10, cornerRadius: 6,
+        titleFont: { family: "'Noto Sans KR'", weight: '600' }, bodyFont: { family: "'Noto Sans KR'" }
+      }
+    },
+    scales: {}
+  };
+  for (const [key, val] of Object.entries(scales)) {
+    base.scales[key] = {
+      ...val,
+      grid: { color: '#F0F0F3', ...(val.grid||{}) },
+      ticks: { color: '#9CA3AF', font: { size: 10, family: "'Noto Sans KR'" }, ...(val.ticks||{}) },
+    };
+  }
+  if (!base.scales.x) base.scales.x = { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 10, family: "'Noto Sans KR'" }, maxRotation: 45 } };
+  return base;
+}
+
+function resetAll() {
+  uploadedFiles = []; allData = [];
+  chartInstances.forEach(c => c.destroy()); chartInstances = [];
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loadingSection').style.display = 'none';
+  document.getElementById('uploadSection').style.display = 'block';
+  document.getElementById('headerActions').style.display = 'none';
+  document.getElementById('watermark').style.display = 'none';
+  document.getElementById('fileList').innerHTML = '';
+  analyzeBtn.disabled = true; fileInput.value = '';
+}
+</script>
+</body>
+</html>
