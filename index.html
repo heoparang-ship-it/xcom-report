@@ -525,6 +525,7 @@ tbody tr:hover { background: var(--surface-2); }
 let uploadedFiles = [];
 let allData = [];
 let chartInstances = [];
+let fileDateRanges = []; // 파일별 날짜 범위 수집
 
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
@@ -561,21 +562,89 @@ function parseFile(file) {
   return new Promise((resolve, reject) => {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'csv' || ext === 'tsv') {
-      Papa.parse(file, {
-        header: true, skipEmptyLines: true, encoding: 'euc-kr',
-        complete: (result) => {
-          if (result.data.length === 0) {
-            Papa.parse(file, { header: true, skipEmptyLines: true, encoding: 'utf-8', complete: (r2) => resolve(r2.data), error: reject });
-          } else { resolve(result.data); }
-        }, error: reject
-      });
+      // 네이버 보고서 CSV: 첫 줄이 메타데이터일 수 있으므로 헤더 행 자동 감지
+      const tryParse = (encoding) => {
+        Papa.parse(file, {
+          header: false, skipEmptyLines: true, encoding,
+          complete: (result) => {
+            const rows = result.data;
+            if (!rows || rows.length === 0) {
+              if (encoding === 'utf-8') { tryParse('euc-kr'); return; }
+              resolve([]); return;
+            }
+            // UTF-8로 읽었는데 깨진 문자 확인
+            const firstRowText = rows.slice(0, 3).flat().join('');
+            if (/[\ufffd]/.test(firstRowText) && encoding === 'utf-8') { tryParse('euc-kr'); return; }
+
+            // 헤더 행 찾기: 알려진 컬럼명이 2개 이상 포함된 행
+            const knownCols = ['노출수','클릭수','검색어','캠페인','키워드','총비용','광고비','impressions','clicks','cost','campaign','전환수','클릭률'];
+            let headerIdx = 0;
+            for (let i = 0; i < Math.min(rows.length, 10); i++) {
+              const cellTexts = rows[i].map(c => String(c||'').trim().toLowerCase().replace(/\s+/g,''));
+              const matchCount = cellTexts.filter(t => knownCols.some(h => t.includes(h.toLowerCase()))).length;
+              if (matchCount >= 2) { headerIdx = i; break; }
+            }
+            // 첫 줄(들)에서 날짜 범위 추출 (파일 메타데이터)
+            for (let i = 0; i < headerIdx; i++) {
+              const metaLine = rows[i].join(',');
+              const dateMatch = metaLine.match(/(\d{4}[.\-/]\d{2}[.\-/]\d{2})[.~\-\s]*~?\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/);
+              if (dateMatch) {
+                fileDateRanges.push({ start: dateMatch[1].replace(/\./g, '-').replace(/-$/, ''), end: dateMatch[2].replace(/\./g, '-').replace(/-$/, '') });
+              }
+            }
+            const headers = rows[headerIdx].map(h => String(h||'').trim());
+            console.log('[XCOM] CSV 헤더 감지 (행 ' + headerIdx + '):', headers);
+            const parsed = [];
+            for (let i = headerIdx + 1; i < rows.length; i++) {
+              const row = rows[i];
+              if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
+              const obj = {};
+              headers.forEach((h, idx) => { if (h) obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+              parsed.push(obj);
+            }
+            resolve(parsed);
+          },
+          error: (err) => {
+            if (encoding === 'utf-8') { tryParse('euc-kr'); return; }
+            reject(err);
+          }
+        });
+      };
+      tryParse('utf-8');
     } else {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const wb = XLSX.read(e.target.result, { type: 'array' });
           const allRows = [];
-          wb.SheetNames.forEach(name => { allRows.push(...XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' })); });
+          wb.SheetNames.forEach(name => {
+            const ws = wb.Sheets[name];
+            // 네이버 다차원 보고서: 상단에 메타데이터가 있으므로 실제 헤더 행을 찾아야 함
+            const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            let headerIdx = -1;
+            const knownHeaders = ['노출수','클릭수','총비용','광고비','캠페인','키워드','impressions','clicks','cost','campaign','비용','클릭률','전환수','광고그룹','ctr','cpc'];
+            for (let i = 0; i < Math.min(rawRows.length, 20); i++) {
+              const row = rawRows[i];
+              if (!row || !Array.isArray(row)) continue;
+              const cellTexts = row.map(c => String(c||'').trim().replace(/\s+/g,'').toLowerCase());
+              const matchCount = cellTexts.filter(t => knownHeaders.some(h => t.includes(h.toLowerCase()))).length;
+              if (matchCount >= 2) { headerIdx = i; break; }
+            }
+            if (headerIdx >= 0) {
+              // 헤더 행을 찾았으면 그 행부터 파싱
+              const headers = rawRows[headerIdx].map(h => String(h||'').trim());
+              for (let i = headerIdx + 1; i < rawRows.length; i++) {
+                const row = rawRows[i];
+                if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
+                const obj = {};
+                headers.forEach((h, idx) => { if (h) obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+                allRows.push(obj);
+              }
+            } else {
+              // 헤더 행을 못 찾으면 기본 방식으로 파싱
+              allRows.push(...XLSX.utils.sheet_to_json(ws, { defval: '' }));
+            }
+          });
           resolve(allRows);
         } catch(err) { reject(err); }
       };
@@ -584,25 +653,28 @@ function parseFile(file) {
   });
 }
 
-function normalizeKey(k) { return (k||'').toString().trim().replace(/\s+/g,'').toLowerCase(); }
+function normalizeKey(k) { return (k||'').toString().trim().replace(/[\s\n\r]+/g,'').replace(/[()（）\[\]]/g,'').toLowerCase(); }
 
 function mapColumns(data) {
   if (!data.length) return [];
   const sampleKeys = Object.keys(data[0]);
   const mapping = {};
   const patterns = {
-    date: ['일별','일자','날짜','date','기간','보고일'],
-    campaign: ['캠페인','campaign','캠페인명','캠페인이름'],
-    adgroup: ['광고그룹','adgroup','그룹','광고그룹명'],
-    keyword: ['키워드','keyword','검색어','소재키워드'],
+    date: ['일별','일자','날짜','date','기간','보고일','일'],
+    campaign: ['캠페인','campaign','캠페인명','캠페인이름','캠페인(그룹)'],
+    adgroup: ['광고그룹','adgroup','그룹','광고그룹명','광고그룹(소재)'],
+    keyword: ['키워드','keyword','검색어','소재키워드','키워드(소재)'],
     impressions: ['노출수','impressions','impr','노출'],
     clicks: ['클릭수','clicks','클릭'],
-    cost: ['총비용','광고비','cost','비용','총비용(vat포함)','총비용(부가세포함)','광고비(vat포함)','사용금액'],
-    conversions: ['전환수','conversions','전환','목표전환수','총전환수'],
-    convValue: ['전환매출','전환매출액','전환가치','convvalue','conversionvalue','총전환매출'],
-    ctr: ['클릭률','ctr','클릭률(%)'],
-    cpc: ['평균클릭비용','cpc','클릭당비용','평균cpc'],
-    device: ['디바이스','device','pc/모바일','기기'],
+    cost: ['총비용','광고비','cost','비용','총비용(vat포함)','총비용(부가세포함)','광고비(vat포함)','사용금액','비용(vat포함)','총광고비'],
+    conversions: ['총전환수','전환수','conversions','전환','목표전환수','총 전환수','전환수(1일)','전환수(7일)','전환수(15일)','전환수(30일)'],
+    convValue: ['총전환매출액','전환매출액','전환매출','전환가치','convvalue','conversionvalue','총전환매출','총 전환매출액','전환매출(1일)','전환매출(7일)','전환매출(15일)','전환매출(30일)','전환수익'],
+    ctr: ['클릭률','ctr','클릭률(%)','클릭률(ctr)'],
+    cpc: ['평균클릭비용','cpc','클릭당비용','평균cpc','평균클릭비용(cpc)','평균클릭비용(vat포함)'],
+    roas: ['총광고수익률','광고수익률','roas','총 광고수익률'],
+    cpa: ['총전환당비용','전환당비용','cpa','총 전환당비용'],
+    cvr: ['총전환율','전환율','cvr','총 전환율'],
+    device: ['디바이스','device','pc/모바일','기기','매체'],
   };
   for (const sk of sampleKeys) {
     const nk = normalizeKey(sk);
@@ -610,6 +682,8 @@ function mapColumns(data) {
       if (!mapping[field] && pats.some(p => nk.includes(normalizeKey(p)))) mapping[field] = sk;
     }
   }
+  console.log('[XCOM] 컬럼 매핑:', JSON.stringify(mapping));
+  console.log('[XCOM] 원본 헤더:', sampleKeys);
   return data.map(row => {
     const m = {};
     for (const [field, col] of Object.entries(mapping)) {
@@ -618,7 +692,7 @@ function mapColumns(data) {
         m[field] = ['date','campaign','adgroup','keyword','device'].includes(field) ? '' : 0;
       } else if (['impressions','clicks','cost','conversions','convValue'].includes(field)) {
         m[field] = parseNum(val);
-      } else if (['ctr','cpc'].includes(field)) {
+      } else if (['ctr','cpc','roas','cpa','cvr'].includes(field)) {
         m[field] = parseFloat(String(val).replace(/[%,]/g,'')) || 0;
       } else {
         m[field] = String(val).trim();
@@ -628,14 +702,28 @@ function mapColumns(data) {
   });
 }
 
-function parseNum(val) { return typeof val==='number' ? val : parseFloat(String(val).replace(/[,원₩\s%]/g,'')) || 0; }
+function parseNum(val) {
+  if (val === null || val === undefined || val === '' || val === '-') return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).replace(/[,원₩\s%\u00A0]/g,'').trim();
+  return parseFloat(s) || 0;
+}
 
 async function startAnalysis() {
   document.getElementById('uploadSection').style.display = 'none';
   document.getElementById('loadingSection').style.display = 'block';
   allData = [];
+  fileDateRanges = [];
   for (const file of uploadedFiles) {
-    try { const raw = await parseFile(file); allData.push(...mapColumns(raw)); } catch(e) { console.error(e); }
+    try {
+      const raw = await parseFile(file);
+      console.log('[XCOM] 파싱 원본 데이터:', raw.length, '행');
+      if (raw.length > 0) console.log('[XCOM] 첫 행 컬럼:', Object.keys(raw[0]));
+      const mapped = mapColumns(raw);
+      console.log('[XCOM] 매핑 결과:', mapped.length, '행');
+      if (mapped.length > 0) console.log('[XCOM] 매핑 샘플:', mapped[0]);
+      allData.push(...mapped);
+    } catch(e) { console.error('[XCOM] 파싱 에러:', e); }
   }
   await new Promise(r => setTimeout(r, 600));
   if (allData.length === 0) { alert('데이터를 읽을 수 없습니다. 파일 형식을 확인해주세요.'); resetAll(); return; }
@@ -664,9 +752,20 @@ function renderDashboard() {
 
   const dates = data.map(r => r.date).filter(d => d);
   const uniqueDates = [...new Set(dates)].sort();
-  document.getElementById('reportPeriod').textContent = uniqueDates.length > 0
-    ? `${uniqueDates[0]} — ${uniqueDates[uniqueDates.length-1]}  (${uniqueDates.length}일)`
-    : `총 ${data.length.toLocaleString()}행`;
+
+  // 파일 메타데이터에서 추출한 날짜 범위 사용, 없으면 데이터 내 날짜 사용
+  let periodText = '';
+  if (fileDateRanges.length > 0) {
+    const allStarts = fileDateRanges.map(r => r.start).sort();
+    const allEnds = fileDateRanges.map(r => r.end).sort();
+    periodText = `${allStarts[0]} — ${allEnds[allEnds.length-1]}`;
+    if (uploadedFiles.length > 1) periodText += ` (${uploadedFiles.length}개 보고서 통합)`;
+  } else if (uniqueDates.length > 0) {
+    periodText = `${uniqueDates[0]} — ${uniqueDates[uniqueDates.length-1]}  (${uniqueDates.length}일)`;
+  } else {
+    periodText = `총 ${data.length.toLocaleString()}행 · ${uploadedFiles.length}개 파일`;
+  }
+  document.getElementById('reportPeriod').textContent = periodText;
 
   let badge = '성과 양호';
   if (ctr >= 3 || roas >= 300) badge = '우수한 성과';
@@ -678,15 +777,15 @@ function renderDashboard() {
 
   // KPI
   const kpis = [
-    { label: '노출수', value: fmtN(totals.impressions), tag: '도달 확보', cls: 'up' },
-    { label: '클릭수', value: fmtN(totals.clicks), tag: '유입 확보', cls: 'up' },
-    { label: 'CTR', value: ctr.toFixed(2)+'%', tag: getCtrTag(ctr), cls: ctr>=2?'up':'stable' },
-    { label: '광고비', value: '₩'+fmtN(totals.cost), tag: '집행 중', cls: 'stable' },
-    { label: 'CPC', value: '₩'+fmtN(Math.round(cpc)), tag: getCpcTag(cpc), cls: cpc<=1000?'up':'stable' },
-    { label: '전환수', value: fmtN(totals.conversions), tag: totals.conversions>0?'전환 발생':'추적 설정 권장', cls: totals.conversions>0?'up':'info' },
+    { label: '노출수', value: fmtN(totals.impressions), tag: totals.impressions>=10000?'우수한 도달':totals.impressions>=1000?'도달 확보':'브랜드 노출 중', cls: 'up' },
+    { label: '클릭수', value: fmtN(totals.clicks), tag: totals.clicks>=100?'활발한 유입':totals.clicks>0?'유입 확보':'유입 준비 중', cls: totals.clicks>0?'up':'info' },
+    { label: 'CTR', value: ctr.toFixed(2)+'%', tag: getCtrTag(ctr), cls: ctr>=1?'up':'stable' },
+    { label: '광고비', value: '₩'+fmtN(totals.cost), tag: totals.cost>0?'정상 집행':'집행 대기', cls: 'stable' },
+    { label: 'CPC', value: '₩'+fmtN(Math.round(cpc)), tag: getCpcTag(cpc), cls: cpc>0&&cpc<=1000?'up':'stable' },
+    { label: '전환수', value: fmtN(totals.conversions), tag: totals.conversions>=10?'전환 활발':totals.conversions>0?'전환 발생':'추적 설정 권장', cls: totals.conversions>0?'up':'info' },
   ];
-  if (totals.convValue > 0) kpis.push({ label: 'ROAS', value: roas.toFixed(0)+'%', tag: roas>=300?'높은 수익성':'성장 중', cls: roas>=200?'up':'stable' });
-  if (totals.conversions > 0) kpis.push({ label: 'CPA', value: '₩'+fmtN(Math.round(cpa)), tag: cpa<=30000?'효율적':'최적화 가능', cls: cpa<=30000?'up':'stable' });
+  if (totals.convValue > 0) kpis.push({ label: 'ROAS', value: roas.toFixed(0)+'%', tag: roas>=300?'높은 수익성':roas>=100?'수익 확보':'성장 중', cls: roas>=100?'up':'stable' });
+  if (totals.conversions > 0) kpis.push({ label: 'CPA', value: '₩'+fmtN(Math.round(cpa)), tag: cpa<=20000?'최고 효율':cpa<=50000?'효율적':'최적화 여지', cls: cpa<=50000?'up':'stable' });
 
   document.getElementById('kpiGrid').innerHTML = kpis.map(k =>
     `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-change ${k.cls}">${k.tag}</div></div>`
@@ -814,47 +913,57 @@ function renderExecSummary(totals, ctr, cpc, cpa, roas, cvr, dates) {
   // Build summary paragraphs
   let summary = '';
 
-  // Overall performance assessment
+  // Overall performance assessment - 항상 긍정적으로
   if (ctr >= 5 || roas >= 500) {
     summary += `분석 기간 동안 캠페인이 <strong>탁월한 성과</strong>를 기록하고 있습니다. `;
   } else if (ctr >= 2 || roas >= 200) {
-    summary += `분석 기간 동안 캠페인이 <strong>안정적인 성과</strong>를 유지하고 있습니다. `;
+    summary += `분석 기간 동안 캠페인이 <strong>안정적이고 건강한 성과</strong>를 유지하고 있습니다. `;
+  } else if (totals.clicks > 0) {
+    summary += `분석 기간 동안 캠페인이 <strong>착실하게 기반을 다지고 있으며</strong>, 성장을 위한 데이터가 충분히 축적되고 있습니다. `;
   } else {
     summary += `분석 기간 동안 캠페인의 기반이 마련되었으며 <strong>성장 가능성이 확인</strong>됩니다. `;
   }
 
-  // Traffic & reach
+  // Traffic & reach - 항상 긍정적 프레이밍
   summary += `총 <strong>${fmtN(totals.impressions)}회</strong> 노출을 통해 브랜드 도달을 확보하였고, `;
-  summary += `<strong>${fmtN(totals.clicks)}회</strong>의 클릭으로 잠재 고객 유입이 이루어졌습니다. `;
-
-  // CTR assessment
-  if (ctr >= 3) {
-    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>는 광고 소재의 매력도가 높은 수준임을 보여줍니다. `;
-  } else if (ctr >= 1) {
-    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>로 안정적인 유입이 이루어지고 있으며, 소재 최적화를 통해 추가 개선이 가능합니다. `;
+  if (totals.clicks > 0) {
+    summary += `<strong>${fmtN(totals.clicks)}회</strong>의 클릭으로 잠재 고객 유입이 이루어졌습니다. `;
   } else {
+    summary += `브랜드 인지도 확보를 위한 노출이 진행되고 있습니다. `;
+  }
+
+  // CTR assessment - 긍정적 표현 강화
+  if (ctr >= 3) {
+    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>는 광고 소재의 높은 매력도를 증명합니다. `;
+  } else if (ctr >= 1) {
+    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>로 안정적인 고객 유입이 이루어지고 있으며, 확장소재 보강을 통해 더 좋은 성과가 기대됩니다. `;
+  } else if (ctr > 0) {
     summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>이며, 확장소재 추가와 소재 A/B 테스트를 통해 상승 여지가 충분합니다. `;
   }
 
-  // Cost efficiency
-  summary += `총 광고비 <strong>₩${fmtN(totals.cost)}</strong>이 집행되었으며, 평균 CPC <strong>₩${fmtN(Math.round(cpc))}</strong>으로 `;
-  if (cpc <= 500) {
-    summary += `효율적인 클릭 단가를 유지하고 있습니다. `;
-  } else if (cpc <= 2000) {
-    summary += `합리적인 수준에서 유입을 확보하고 있습니다. `;
-  } else {
-    summary += `프리미엄 키워드 시장에서 경쟁력을 유지하고 있습니다. `;
+  // Cost efficiency - 긍정적 표현
+  if (totals.cost > 0) {
+    summary += `총 광고비 <strong>₩${fmtN(totals.cost)}</strong>이 집행되었으며, 평균 CPC <strong>₩${fmtN(Math.round(cpc))}</strong>으로 `;
+    if (cpc <= 300) {
+      summary += `매우 효율적인 클릭 단가를 유지하고 있습니다. `;
+    } else if (cpc <= 800) {
+      summary += `효율적인 클릭 단가를 유지하고 있습니다. `;
+    } else if (cpc <= 2000) {
+      summary += `합리적인 수준에서 유입을 확보하고 있습니다. `;
+    } else {
+      summary += `프리미엄 키워드 시장에서 경쟁력 있는 포지션을 유지하고 있습니다. `;
+    }
   }
 
-  // Conversions
+  // Conversions - 긍정적 프레이밍
   if (totals.conversions > 0) {
     summary += `<strong>${fmtN(totals.conversions)}건</strong>의 전환이 발생하여 광고 퍼널이 정상적으로 작동하고 있음을 확인하였습니다. `;
     if (roas > 0) {
       summary += `ROAS <strong>${roas.toFixed(0)}%</strong>로 `;
       if (roas >= 300) {
-        summary += `투자 대비 수익성이 확보된 구조입니다.`;
+        summary += `투자 대비 높은 수익성이 확보되어 있습니다.`;
       } else {
-        summary += `수익 기반이 구축되고 있으며, 고성과 키워드 집중 배분으로 추가 개선이 기대됩니다.`;
+        summary += `수익 기반이 탄탄하게 구축되고 있으며, 고성과 키워드 집중 배분으로 추가 성장이 기대됩니다.`;
       }
     }
   } else {
@@ -940,8 +1049,8 @@ function genInsights(totals, ctr, cpc, cpa, roas, cvr, camps, kws, dates) {
 }
 
 // Helpers
-function getCtrTag(v) { return v>=5?'탁월':v>=2?'양호':'성장 잠재력'; }
-function getCpcTag(v) { return v<=500?'효율적':v<=1500?'합리적':'프리미엄'; }
+function getCtrTag(v) { return v>=5?'탁월한 소재력':v>=2?'안정적 성과':v>=0.5?'성장 중':'도달 확보 중'; }
+function getCpcTag(v) { return v<=300?'최고 효율':v<=800?'효율적':v<=1500?'합리적':'프리미엄 경쟁'; }
 function fmtN(n) { return Math.round(n).toLocaleString('ko-KR'); }
 function trunc(s,l) { return s.length>l ? s.slice(0,l)+'…' : s; }
 function shortDate(d) {
@@ -994,7 +1103,7 @@ function chartOpts(scales) {
 }
 
 function resetAll() {
-  uploadedFiles = []; allData = [];
+  uploadedFiles = []; allData = []; fileDateRanges = [];
   chartInstances.forEach(c => c.destroy()); chartInstances = [];
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loadingSection').style.display = 'none';
