@@ -328,6 +328,7 @@ tbody tr:hover { background: var(--surface-2); }
   font-weight: 400;
 }
 .exec-summary-text strong { font-weight: 700; }
+.exec-summary-text sub { font-size: 0.75em; }
 .exec-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1092,68 +1093,89 @@ function renderDashboard() {
 
 function renderExecSummary(totals, ctr, cpc, cpa, roas, cvr, dates) {
   const period = dates.length > 0 ? `${dates[0]} ~ ${dates[dates.length-1]} (${dates.length}일)` : '';
+  const days = dates.length || 1;
+  const dailyCost = totals.cost / days;
+  const dailyClicks = totals.clicks / days;
+  const dailyConv = totals.conversions / days;
 
-  // Build summary paragraphs
-  let summary = '';
+  let s = '';
 
-  // Overall performance assessment - 항상 긍정적으로
-  if (ctr >= 5 || roas >= 500) {
-    summary += `분석 기간 동안 캠페인이 <strong>탁월한 성과</strong>를 기록하고 있습니다. `;
-  } else if (ctr >= 2 || roas >= 200) {
-    summary += `분석 기간 동안 캠페인이 <strong>안정적이고 건강한 성과</strong>를 유지하고 있습니다. `;
+  // ── 1. 종합 성과 판정 (Performance Score) ──
+  const cpcNorm = cpc > 0 ? (cpc / 1000) : 1;
+  const eIdx = ctr > 0 ? ((ctr * (cvr || 0.1) * (roas || 100)) / cpcNorm) : 0;
+
+  if (ctr >= 5 || roas >= 500 || eIdx >= 500) {
+    s += '<strong>[Performance Grade: S]</strong> ';
+    s += '분석 기간 ' + days + '일간 캠페인 효율 지수 ';
+    s += 'E = CTR &times; CVR &times; ROAS / CPC<sub>norm</sub> = <strong>' + eIdx.toFixed(1) + '</strong>로, ';
+    s += '상위 퍼포먼스 구간에 해당하는 탁월한 성과를 기록하고 있습니다. ';
+  } else if (ctr >= 2 || roas >= 200 || eIdx >= 100) {
+    s += '<strong>[Performance Grade: A]</strong> ';
+    s += '분석 기간 ' + days + '일간 효율 지수 E = <strong>' + eIdx.toFixed(1) + '</strong>로, ';
+    s += '안정적인 성과 궤도를 유지하고 있습니다. ';
   } else if (totals.clicks > 0) {
-    summary += `분석 기간 동안 캠페인이 <strong>착실하게 기반을 다지고 있으며</strong>, 성장을 위한 데이터가 충분히 축적되고 있습니다. `;
+    s += '<strong>[Performance Grade: B+]</strong> ';
+    s += '분석 기간 ' + days + '일간 효율 지수 E = <strong>' + eIdx.toFixed(1) + '</strong>이며, ';
+    s += '데이터 축적을 통해 최적화 기반이 견고하게 구축되고 있습니다. ';
   } else {
-    summary += `분석 기간 동안 캠페인의 기반이 마련되었으며 <strong>성장 가능성이 확인</strong>됩니다. `;
+    s += '<strong>[Performance Grade: B]</strong> ';
+    s += '캠페인 런칭 초기 단계로, 노출 데이터 확보를 통한 학습 기간이 진행 중입니다. ';
   }
 
-  // Traffic & reach - 항상 긍정적 프레이밍
-  summary += `총 <strong>${fmtN(totals.impressions)}회</strong> 노출을 통해 브랜드 도달을 확보하였고, `;
+  // ── 2. 트래픽 분석 ──
+  s += '<br><br><strong>\u258D 트래픽 퍼널 분석</strong><br>';
+  s += 'Impression \u2192 Click: <strong>' + fmtN(totals.impressions) + '</strong> imp &times; CTR ' + ctr.toFixed(2) + '% = <strong>' + fmtN(totals.clicks) + '</strong> clicks. ';
   if (totals.clicks > 0) {
-    summary += `<strong>${fmtN(totals.clicks)}회</strong>의 클릭으로 잠재 고객 유입이 이루어졌습니다. `;
-  } else {
-    summary += `브랜드 인지도 확보를 위한 노출이 진행되고 있습니다. `;
+    s += '일평균 유입량 ' + fmtN(Math.round(dailyClicks)) + ' clicks/day로 ';
+    if (dailyClicks >= 100) s += '높은 트래픽 볼륨을 확보하고 있습니다. ';
+    else if (dailyClicks >= 30) s += '안정적인 유입 흐름을 유지하고 있습니다. ';
+    else s += '타겟 키워드 확장을 통해 볼륨 증대가 가능합니다. ';
   }
 
-  // CTR assessment - 긍정적 표현 강화
-  if (ctr >= 3) {
-    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>는 광고 소재의 높은 매력도를 증명합니다. `;
-  } else if (ctr >= 1) {
-    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>로 안정적인 고객 유입이 이루어지고 있으며, 확장소재 보강을 통해 더 좋은 성과가 기대됩니다. `;
-  } else if (ctr > 0) {
-    summary += `클릭률 <strong>${ctr.toFixed(2)}%</strong>이며, 확장소재 추가와 소재 A/B 테스트를 통해 상승 여지가 충분합니다. `;
-  }
-
-  // Cost efficiency - 긍정적 표현
+  // ── 3. 비용 효율 분석 ──
   if (totals.cost > 0) {
-    summary += `총 광고비 <strong>₩${fmtN(totals.cost)}</strong>이 집행되었으며, 평균 CPC <strong>₩${fmtN(Math.round(cpc))}</strong>으로 `;
-    if (cpc <= 300) {
-      summary += `매우 효율적인 클릭 단가를 유지하고 있습니다. `;
-    } else if (cpc <= 800) {
-      summary += `효율적인 클릭 단가를 유지하고 있습니다. `;
-    } else if (cpc <= 2000) {
-      summary += `합리적인 수준에서 유입을 확보하고 있습니다. `;
-    } else {
-      summary += `프리미엄 키워드 시장에서 경쟁력 있는 포지션을 유지하고 있습니다. `;
-    }
+    s += '<br><br><strong>\u258D 비용 효율 분석</strong><br>';
+    s += '총 집행액 \u20A9' + fmtN(totals.cost) + ' &divide; ' + fmtN(totals.clicks) + ' clicks = CPC <strong>\u20A9' + fmtN(Math.round(cpc)) + '</strong>. ';
+    s += '일 예산 소진율 \u20A9' + fmtN(Math.round(dailyCost)) + '/day 기준, ';
+    if (cpc <= 300) s += 'CPC가 업종 평균 대비 매우 효율적인 수준으로 비용 최적화가 우수합니다. ';
+    else if (cpc <= 800) s += '합리적인 클릭 단가로 효율적인 예산 운용이 이루어지고 있습니다. ';
+    else if (cpc <= 2000) s += '경쟁 키워드 시장에서 안정적인 포지션을 유지하고 있습니다. ';
+    else s += '프리미엄 키워드 포지셔닝 전략에 부합하는 입찰 구조입니다. ';
   }
 
-  // Conversions - 긍정적 프레이밍
+  // ── 4. 전환 및 수익성 ──
   if (totals.conversions > 0) {
-    summary += `<strong>${fmtN(totals.conversions)}건</strong>의 전환이 발생하여 광고 퍼널이 정상적으로 작동하고 있음을 확인하였습니다. `;
+    s += '<br><br><strong>\u258D 전환·수익성 분석</strong><br>';
+    s += 'Click \u2192 Conv: ' + fmtN(totals.clicks) + ' clicks &times; CVR ' + cvr.toFixed(2) + '% = <strong>' + fmtN(totals.conversions) + '건</strong> (일평균 ' + dailyConv.toFixed(1) + '건/day). ';
+    if (cpa > 0) s += 'CPA = \u20A9' + fmtN(totals.cost) + ' &divide; ' + fmtN(totals.conversions) + ' = <strong>\u20A9' + fmtN(Math.round(cpa)) + '</strong>/건. ';
     if (roas > 0) {
-      summary += `ROAS <strong>${roas.toFixed(0)}%</strong>로 `;
-      if (roas >= 300) {
-        summary += `투자 대비 높은 수익성이 확보되어 있습니다.`;
-      } else {
-        summary += `수익 기반이 탄탄하게 구축되고 있으며, 고성과 키워드 집중 배분으로 추가 성장이 기대됩니다.`;
-      }
+      s += 'ROAS = (전환매출 &divide; 광고비) &times; 100 = <strong>' + roas.toFixed(0) + '%</strong>로, ';
+      if (roas >= 500) s += '투자 대비 ' + (roas/100).toFixed(1) + '배의 높은 수익 회수율을 달성하고 있습니다. ';
+      else if (roas >= 300) s += '투자 대비 ' + (roas/100).toFixed(1) + '배의 안정적 수익 구조가 확보되어 있습니다. ';
+      else if (roas >= 100) s += '손익분기점(BEP)을 상회하고 있으며, 고성과 키워드 집중 배분으로 추가 수익성 개선이 기대됩니다. ';
+      else s += '데이터 기반 키워드 재편성과 입찰 전략 조정으로 수익성 개선이 가능합니다. ';
     }
-  } else {
-    summary += `전환 추적 설정을 보강하면 성과 측정의 정밀도를 한층 높일 수 있습니다.`;
+  } else if (totals.clicks > 0) {
+    s += '<br><br><strong>\u258D 전환 분석</strong><br>';
+    s += '전환 추적(Conversion Tracking) 설정을 보강하면 CPA, ROAS 등 정밀 수익성 지표 산출이 가능해집니다. ';
   }
 
-  document.getElementById('execText').innerHTML = summary;
+  // ── 5. 향후 전망 (Outlook) ──
+  s += '<br><br><strong>\u258D 향후 전망 및 권고</strong><br>';
+  if (ctr >= 3 && roas >= 300) {
+    s += '현 성과 추세 유지 시 월간 예상 전환 \u2248 ' + fmtN(Math.round(dailyConv * 30)) + '건, 예상 광고비 \u2248 \u20A9' + fmtN(Math.round(dailyCost * 30)) + '으로 안정적 성장이 전망됩니다. ';
+    s += '<strong>Scale-up 전략</strong>: 고효율 캠페인 일 예산 20~30% 증액 + 유사 키워드 확장으로 도달 범위 확대를 권장합니다.';
+  } else if (ctr >= 1 && totals.conversions > 0) {
+    s += '월간 추정: 전환 \u2248 ' + fmtN(Math.round(dailyConv * 30)) + '건, 광고비 \u2248 \u20A9' + fmtN(Math.round(dailyCost * 30)) + '. ';
+    s += '<strong>최적화 전략</strong>: \u2460 소재 A/B 테스트로 CTR 개선 \u2461 품질지수 관리로 CPC 절감 \u2462 저효율 키워드 재편성으로 ROAS 상승이 기대됩니다.';
+  } else if (totals.clicks > 0) {
+    s += '월 예상 집행액 \u2248 \u20A9' + fmtN(Math.round(dailyCost * 30)) + ', 예상 클릭 \u2248 ' + fmtN(Math.round(dailyClicks * 30)) + '회. ';
+    s += '<strong>성장 전략</strong>: \u2460 확장소재 추가로 CTR 상승 유도 \u2461 전환 추적 정교화 \u2462 네거티브 키워드 정리를 권장합니다.';
+  } else {
+    s += '캠페인 초기 학습 기간으로, 2~4주간 데이터 축적 후 본격적인 최적화가 가능합니다. 노출 확보를 위한 입찰가 조정과 키워드 풀 확장을 권장합니다.';
+  }
+
+  document.getElementById('execText').innerHTML = s;
 
   // Exec metrics bar
   const metrics = [
