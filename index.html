@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -451,6 +452,8 @@ tbody tr:hover { background: var(--surface-2); }
     </div>
     <div class="header-actions" id="headerActions" style="display:none;">
       <button class="btn" onclick="resetAll()">새 보고서</button>
+      <button class="btn" onclick="exportExcel()">엑셀 저장</button>
+      <button class="btn" onclick="exportPDF()">PDF 저장</button>
       <button class="btn btn-primary" onclick="enterPrintMode()">인쇄</button>
     </div>
   </header>
@@ -497,7 +500,8 @@ tbody tr:hover { background: var(--surface-2); }
       <button class="btn-sm" onclick="toggleAllPrintBlocks(true)">전체 선택</button>
       <button class="btn-sm" onclick="toggleAllPrintBlocks(false)">전체 해제</button>
       <button class="btn-sm" onclick="exitPrintMode()">취소</button>
-      <button class="btn-sm primary" onclick="doPrint()">PDF 인쇄</button>
+      <button class="btn-sm primary" onclick="doPrint()">인쇄</button>
+      <button class="btn-sm primary" onclick="exportPDFSelected()">PDF 저장</button>
     </div>
   </div>
 
@@ -627,6 +631,171 @@ function doPrint() {
   updatePrintCount();
   window.print();
   exitPrintMode();
+}
+
+/* ── PDF Export ── */
+function exportPDF() {
+  const dashboard = document.getElementById('dashboard');
+  const reportTitle = document.getElementById('reportTitle').textContent || '성과보고서';
+  const period = document.getElementById('reportPeriod').textContent || '';
+  const filename = `${reportTitle}_${period.replace(/[\s~/—]/g, '_').replace(/_+/g, '_')}.pdf`;
+
+  // 임시로 워터마크, 헤더 숨기고 대시보드만 캡처
+  const watermark = document.getElementById('watermark');
+  const header = document.querySelector('.header');
+  const uploadSection = document.getElementById('uploadSection');
+  const origWatermark = watermark.style.display;
+  watermark.style.display = 'none';
+  header.style.display = 'none';
+  uploadSection.style.display = 'none';
+
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  html2pdf().set(opt).from(dashboard).save().then(() => {
+    watermark.style.display = origWatermark;
+    header.style.display = '';
+    uploadSection.style.display = '';
+  });
+}
+
+function exportPDFSelected() {
+  updatePrintCount();
+  // 선택된 섹션만 포함하는 임시 컨테이너 생성
+  const blocks = document.querySelectorAll('.print-block:not(.excluded)');
+  if (blocks.length === 0) { alert('선택된 섹션이 없습니다.'); return; }
+
+  const container = document.createElement('div');
+  container.style.background = '#fff';
+  container.style.padding = '20px';
+  container.style.maxWidth = '800px';
+
+  // 리포트 헤더 추가
+  const reportHeader = document.querySelector('.report-header');
+  if (reportHeader) container.appendChild(reportHeader.cloneNode(true));
+
+  blocks.forEach(block => {
+    container.appendChild(block.cloneNode(true));
+  });
+
+  // 체크박스 제거
+  container.querySelectorAll('.print-check').forEach(cb => cb.remove());
+
+  document.body.appendChild(container);
+
+  const reportTitle = document.getElementById('reportTitle').textContent || '성과보고서';
+  const period = document.getElementById('reportPeriod').textContent || '';
+  const filename = `${reportTitle}_${period.replace(/[\s~/—]/g, '_').replace(/_+/g, '_')}.pdf`;
+
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  html2pdf().set(opt).from(container).save().then(() => {
+    document.body.removeChild(container);
+    exitPrintMode();
+  });
+}
+
+/* ── Excel Export ── */
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const data = allData;
+
+  // 1. 종합 요약 시트
+  const totals = { impressions: 0, clicks: 0, cost: 0, conversions: 0, convValue: 0 };
+  data.forEach(r => {
+    totals.impressions += r.impressions||0; totals.clicks += r.clicks||0;
+    totals.cost += r.cost||0; totals.conversions += r.conversions||0; totals.convValue += r.convValue||0;
+  });
+  const ctr = totals.impressions ? (totals.clicks/totals.impressions*100) : 0;
+  const cpc = totals.clicks ? totals.cost/totals.clicks : 0;
+  const cpa = totals.conversions ? totals.cost/totals.conversions : 0;
+  const roas = totals.cost ? (totals.convValue/totals.cost*100) : 0;
+  const cvr = totals.clicks ? (totals.conversions/totals.clicks*100) : 0;
+
+  const summaryData = [
+    ['네이버 검색광고 성과 보고서'],
+    ['기간', document.getElementById('reportPeriod').textContent || ''],
+    [],
+    ['지표', '값'],
+    ['노출수', totals.impressions],
+    ['클릭수', totals.clicks],
+    ['CTR (%)', +ctr.toFixed(2)],
+    ['총 광고비 (원)', totals.cost],
+    ['CPC (원)', Math.round(cpc)],
+    ['전환수', totals.conversions],
+    ['CVR (%)', +cvr.toFixed(2)],
+    ['CPA (원)', Math.round(cpa)],
+    ['전환매출 (원)', totals.convValue],
+    ['ROAS (%)', +roas.toFixed(0)],
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{ wch: 20 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, '종합 요약');
+
+  // 2. 캠페인별 성과 시트
+  const campMap = {};
+  data.forEach(r => {
+    const c = r.campaign || '(미분류)';
+    if (!campMap[c]) campMap[c] = {impressions:0,clicks:0,cost:0,conversions:0,convValue:0};
+    campMap[c].impressions += r.impressions||0; campMap[c].clicks += r.clicks||0;
+    campMap[c].cost += r.cost||0; campMap[c].conversions += r.conversions||0; campMap[c].convValue += r.convValue||0;
+  });
+  const campRows = [['캠페인', '노출수', '클릭수', 'CTR (%)', '광고비 (원)', 'CPC (원)', '전환수', '비중 (%)']];
+  Object.entries(campMap).sort((a,b) => b[1].cost - a[1].cost).forEach(([name, d]) => {
+    const ct = d.impressions ? +(d.clicks/d.impressions*100).toFixed(2) : 0;
+    const cp = d.clicks ? Math.round(d.cost/d.clicks) : 0;
+    const share = totals.cost ? +(d.cost/totals.cost*100).toFixed(1) : 0;
+    campRows.push([name, d.impressions, d.clicks, ct, d.cost, cp, d.conversions, share]);
+  });
+  const wsCamp = XLSX.utils.aoa_to_sheet(campRows);
+  wsCamp['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, wsCamp, '캠페인별 성과');
+
+  // 3. 키워드 TOP 20 시트
+  const kwMap = {};
+  data.forEach(r => {
+    if (!r.keyword) return;
+    if (!kwMap[r.keyword]) kwMap[r.keyword] = {impressions:0,clicks:0,cost:0,conversions:0};
+    kwMap[r.keyword].impressions += r.impressions||0; kwMap[r.keyword].clicks += r.clicks||0;
+    kwMap[r.keyword].cost += r.cost||0; kwMap[r.keyword].conversions += r.conversions||0;
+  });
+  const kwRows = [['순위', '키워드', '노출수', '클릭수', 'CTR (%)', '광고비 (원)', 'CPC (원)', '전환수']];
+  Object.entries(kwMap).sort((a,b) => b[1].clicks - a[1].clicks).slice(0, 20).forEach(([name, d], i) => {
+    const ct = d.impressions ? +(d.clicks/d.impressions*100).toFixed(2) : 0;
+    const cp = d.clicks ? Math.round(d.cost/d.clicks) : 0;
+    kwRows.push([i+1, name, d.impressions, d.clicks, ct, d.cost, cp, d.conversions]);
+  });
+  const wsKw = XLSX.utils.aoa_to_sheet(kwRows);
+  wsKw['!cols'] = [{ wch: 6 }, { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, wsKw, '키워드 TOP 20');
+
+  // 4. 원본 데이터 시트
+  if (data.length > 0) {
+    const rawHeaders = Object.keys(data[0]);
+    const rawRows = [rawHeaders];
+    data.forEach(r => rawRows.push(rawHeaders.map(h => r[h] ?? '')));
+    const wsRaw = XLSX.utils.aoa_to_sheet(rawRows);
+    wsRaw['!cols'] = rawHeaders.map(() => ({ wch: 15 }));
+    XLSX.utils.book_append_sheet(wb, wsRaw, '원본 데이터');
+  }
+
+  const reportTitle = document.getElementById('reportTitle').textContent || '성과보고서';
+  const period = document.getElementById('reportPeriod').textContent || '';
+  const filename = `${reportTitle}_${period.replace(/[\s~/—]/g, '_').replace(/_+/g, '_')}.xlsx`;
+  XLSX.writeFile(wb, filename);
 }
 
 uploadZone.addEventListener('click', () => fileInput.click());
