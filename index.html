@@ -379,6 +379,64 @@ tbody tr:hover { background: var(--surface-2); }
 .insight-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
 .insight-body { font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
 
+/* Section Headers */
+.section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin: 32px 0 16px; padding-bottom: 12px;
+  border-bottom: 2px solid var(--primary);
+}
+.section-number {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.section-label { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+.section-sublabel { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+/* Funnel Visualization */
+.funnel-wrap { padding: 24px 0; }
+.funnel-bar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.funnel-label { width: 80px; font-size: 12px; font-weight: 600; color: var(--text-secondary); text-align: right; flex-shrink: 0; }
+.funnel-bar-track { flex: 1; height: 40px; background: var(--surface-2); border-radius: 6px; overflow: hidden; position: relative; }
+.funnel-bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; transition: width 0.8s ease; min-width: 40px; }
+.funnel-bar-fill.imp { background: linear-gradient(90deg, #2563EB22, #2563EB44); border: 1px solid #2563EB55; }
+.funnel-bar-fill.click { background: linear-gradient(90deg, #05966922, #05966944); border: 1px solid #05966955; }
+.funnel-bar-fill.conv { background: linear-gradient(90deg, #D9770622, #D9770644); border: 1px solid #D9770655; }
+.funnel-bar-value { font-size: 13px; font-weight: 700; color: var(--text); }
+.funnel-bar-rate { font-size: 11px; color: var(--text-muted); margin-left: 8px; }
+.funnel-arrow { text-align: center; color: var(--text-muted); font-size: 11px; margin: 4px 0 4px 96px; }
+.funnel-arrow span { font-size: 14px; }
+.funnel-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-light);
+}
+.funnel-stat { text-align: center; padding: 12px; background: var(--surface-2); border-radius: var(--radius-sm); }
+.funnel-stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+.funnel-stat-value { font-size: 18px; font-weight: 800; color: var(--text); }
+.funnel-stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Stats Summary Grid */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius);
+  padding: 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.stat-card-header { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.stat-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.stat-item { text-align: center; padding: 6px; background: var(--surface-2); border-radius: 4px; }
+.stat-item-label { font-size: 10px; color: var(--text-muted); }
+.stat-item-value { font-size: 14px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+/* Generic chart containers */
+.generic-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.generic-chart-card {
+  background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius);
+  padding: 20px;
+}
+.generic-chart-card .chart-container { height: 260px; }
+@media (max-width: 768px) { .generic-charts { grid-template-columns: 1fr; } }
+
 /* Animations */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeUp {
@@ -518,7 +576,11 @@ tbody tr:hover { background: var(--surface-2); }
     <div class="print-block" data-print-name="Executive Summary">
       <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
       <div class="exec-summary" id="execSummary">
-        <div class="exec-summary-label">Executive Summary</div>
+        <div class="section-header" style="margin-top:0;">
+          <div class="section-number">1</div>
+          <div class="section-label">Executive Summary</div>
+          <div class="section-sublabel">종합 성과 분석</div>
+        </div>
         <div class="exec-summary-text" id="execText"></div>
         <div class="exec-metrics" id="execMetrics"></div>
       </div>
@@ -526,11 +588,21 @@ tbody tr:hover { background: var(--surface-2); }
 
     <div class="print-block" data-print-name="KPI 핵심 지표">
       <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div class="section-label">핵심 KPI 지표</div>
+        <div class="section-sublabel">Key Performance Indicators</div>
+      </div>
       <div class="kpi-grid" id="kpiGrid"></div>
     </div>
 
     <div class="print-block" data-print-name="광고비·전환수 / 캠페인 비중">
       <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div class="section-label">일별 추이 분석</div>
+        <div class="section-sublabel">Daily Trend Analysis</div>
+      </div>
       <div class="chart-row">
         <div class="chart-card">
           <div class="chart-title">일별 광고비 · 전환수 추이</div>
@@ -561,11 +633,61 @@ tbody tr:hover { background: var(--surface-2); }
       </div>
     </div>
 
+    <!-- Funnel Visualization -->
+    <div class="print-block" data-print-name="트래픽 퍼널 분석">
+      <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
+      <div class="chart-card full" style="margin-bottom:12px;">
+        <div class="section-header" style="margin-top:0; border-bottom:none; padding-bottom:0;">
+          <div class="section-number">4</div>
+          <div class="section-label">트래픽 퍼널 분석</div>
+          <div class="section-sublabel">Impression → Click → Conversion Flow</div>
+        </div>
+        <div id="funnelViz" class="funnel-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Keyword & Campaign Charts -->
+    <div class="print-block" data-print-name="키워드·캠페인 시각화">
+      <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">키워드 TOP 10 클릭수</div>
+          <div class="chart-subtitle">클릭 기준 상위 키워드 시각화</div>
+          <div class="chart-container"><canvas id="chartKeywordBar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">캠페인 성과 비교</div>
+          <div class="chart-subtitle">노출 · 클릭 · 전환 비교</div>
+          <div class="chart-container"><canvas id="chartCampaignCompare"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Efficiency Scatter -->
+    <div class="print-block" data-print-name="효율성 분석">
+      <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">캠페인 효율 분포</div>
+          <div class="chart-subtitle">CPC vs CTR 산점도 — 우상단이 이상적</div>
+          <div class="chart-container"><canvas id="chartScatter"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">광고비 대비 전환 효율</div>
+          <div class="chart-subtitle">캠페인별 비용 대비 전환 수</div>
+          <div class="chart-container"><canvas id="chartCostConv"></canvas></div>
+        </div>
+      </div>
+    </div>
+
     <div class="print-block" data-print-name="캠페인별 상세 성과">
       <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
       <div class="chart-card full" style="margin-bottom:12px;">
-        <div class="chart-title">캠페인별 상세 성과</div>
-        <div class="chart-subtitle">핵심 지표 비교</div>
+        <div class="section-header" style="margin-top:0; border-bottom:none; padding-bottom:0;">
+          <div class="section-number">5</div>
+          <div class="section-label">캠페인별 상세 성과</div>
+          <div class="section-sublabel">Campaign Performance Detail</div>
+        </div>
         <div class="table-wrap" id="campaignTable"></div>
       </div>
     </div>
@@ -573,8 +695,11 @@ tbody tr:hover { background: var(--surface-2); }
     <div class="print-block" data-print-name="키워드 TOP 20">
       <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
       <div class="chart-card full" style="margin-bottom:12px;">
-        <div class="chart-title">키워드 TOP 20</div>
-        <div class="chart-subtitle">클릭 기준 상위 키워드</div>
+        <div class="section-header" style="margin-top:0; border-bottom:none; padding-bottom:0;">
+          <div class="section-number">6</div>
+          <div class="section-label">키워드 TOP 20</div>
+          <div class="section-sublabel">Top Keywords by Clicks</div>
+        </div>
         <div class="table-wrap" id="keywordTable"></div>
       </div>
     </div>
@@ -582,8 +707,11 @@ tbody tr:hover { background: var(--surface-2); }
     <div class="print-block" data-print-name="퍼포먼스 인사이트">
       <input type="checkbox" class="print-check" checked onchange="updatePrintCount()">
       <div class="insights-section">
-        <div class="chart-title" style="font-size:16px;margin-bottom:2px;">퍼포먼스 인사이트</div>
-        <div class="chart-subtitle" style="margin-bottom:16px;">데이터 기반 개선 방향</div>
+        <div class="section-header">
+          <div class="section-number">7</div>
+          <div class="section-label">퍼포먼스 인사이트</div>
+          <div class="section-sublabel">Performance Insights & Recommendations</div>
+        </div>
         <div class="insights-grid" id="insightsGrid"></div>
       </div>
     </div>
@@ -1135,51 +1263,138 @@ function escapeHtml(s) { const d = document.createElement('div'); d.textContent 
 
 function renderGenericTable(data) {
   if (!data || data.length === 0) return;
+  chartInstances.forEach(c => c.destroy()); chartInstances = [];
   const dashboard = document.getElementById('dashboard');
   const keys = Object.keys(data[0]);
+
+  // ── 컬럼 분류 ──
   const numericCols = new Set();
+  const textCols = [];
   keys.forEach(k => {
     const sample = data.slice(0, 10).map(r => r[k]);
     const numCount = sample.filter(v => { const s = String(v||'').replace(/[,%₩원\s\u00A0-]/g,'').trim(); return s && !isNaN(s); }).length;
     if (numCount >= sample.length * 0.5) {
-      // 연도/날짜/ID성 컬럼은 합산에서 제외
       const nk = k.toLowerCase().replace(/[\s]/g,'');
       const isDateLike = /년|year|월|month|일자|날짜|date|입사|생년|퇴사|등록일|수정일|기간/.test(nk);
       const vals = sample.map(v => parseNum(v)).filter(v => v > 0);
       const isYearRange = vals.length > 0 && vals.every(v => v >= 1900 && v <= 2100);
       const isIdLike = /번호|id|코드|code|순번/.test(nk);
-      if (!isDateLike && !isYearRange && !isIdLike) {
-        numericCols.add(k);
-      }
+      if (!isDateLike && !isYearRange && !isIdLike) { numericCols.add(k); }
+    } else {
+      textCols.push(k);
     }
   });
-  const totals = {};
-  numericCols.forEach(k => { totals[k] = 0; });
-  data.forEach(r => { numericCols.forEach(k => { totals[k] += parseNum(r[k]); }); });
+
+  // ── 통계 계산 ──
+  const totals = {}, avgs = {}, mins = {}, maxs = {};
+  numericCols.forEach(k => { totals[k] = 0; mins[k] = Infinity; maxs[k] = -Infinity; });
+  data.forEach(r => {
+    numericCols.forEach(k => {
+      const v = parseNum(r[k]);
+      totals[k] += v;
+      if (v < mins[k]) mins[k] = v;
+      if (v > maxs[k]) maxs[k] = v;
+    });
+  });
+  numericCols.forEach(k => { avgs[k] = data.length > 0 ? totals[k] / data.length : 0; });
+
+  // ── 카테고리 분포 (첫 번째 텍스트 컬럼 기준) ──
+  const catCol = textCols[0] || null;
+  const catMap = {};
+  if (catCol) {
+    data.forEach(r => {
+      const v = String(r[catCol] || '(비어있음)').trim() || '(비어있음)';
+      catMap[v] = (catMap[v] || 0) + 1;
+    });
+  }
+  const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+
+  // ── 텍스트 컬럼별 숫자 집계 ──
+  const firstNumCol = [...numericCols][0] || null;
+  const catNumMap = {};
+  if (catCol && firstNumCol) {
+    data.forEach(r => {
+      const cat = String(r[catCol] || '(비어있음)').trim() || '(비어있음)';
+      catNumMap[cat] = (catNumMap[cat] || 0) + parseNum(r[firstNumCol]);
+    });
+  }
+  const catNumEntries = Object.entries(catNumMap).sort((a, b) => b[1] - a[1]);
 
   const fileName = uploadedFiles.map(f => f.name).join(', ');
-  const container = document.createElement('div');
-  container.className = 'section no-break';
+  const pieC = ['#2563EB','#059669','#D97706','#E11D48','#7C3AED','#0891B2','#EA580C','#4F46E5','#16A34A','#DC2626'];
 
-  let h = `<h2 style="margin-bottom:4px;">데이터 분석 결과</h2>`;
-  h += `<p style="color:var(--text-sub);margin-bottom:16px;font-size:13px;">${escapeHtml(fileName)} · ${data.length.toLocaleString()}행 · ${keys.length}개 컬럼</p>`;
+  // ── 렌더링 시작 ──
+  let h = '';
 
+  // Section 1: 보고서 헤더
+  h += `<div class="report-header"><div><h2 class="report-title">데이터 분석 리포트</h2>`;
+  h += `<div class="report-period">${escapeHtml(fileName)} · ${data.length.toLocaleString()}행 · ${keys.length}개 컬럼</div></div>`;
+  h += `<div class="report-badge">데이터 분석 완료</div></div>`;
+
+  // Section 2: KPI 핵심 지표
   if (numericCols.size > 0) {
-    h += `<div class="kpi-grid" style="margin-bottom:20px;">`;
+    h += `<div class="section-header"><div class="section-number">1</div><div class="section-label">핵심 지표 요약</div><div class="section-sublabel">Key Metrics Summary</div></div>`;
+    h += `<div class="kpi-grid" style="margin-bottom:24px;">`;
     [...numericCols].slice(0, 8).forEach(k => {
       const v = totals[k];
+      const avg = avgs[k];
       const display = v >= 1000 ? Math.round(v).toLocaleString('ko-KR') : (Number.isInteger(v) ? v : v.toFixed(2));
-      h += `<div class="kpi-card"><div class="kpi-label">${escapeHtml(k)}</div><div class="kpi-value">${display}</div><div class="kpi-tag tag-stable">합계</div></div>`;
+      const avgDisplay = avg >= 1000 ? Math.round(avg).toLocaleString('ko-KR') : avg.toFixed(1);
+      h += `<div class="kpi-card"><div class="kpi-label">${escapeHtml(k)}</div><div class="kpi-value">${display}</div><div class="kpi-change stable">합계 · 평균 ${avgDisplay}</div></div>`;
     });
     h += `</div>`;
   }
 
+  // Section 3: 통계 요약
+  if (numericCols.size > 0) {
+    h += `<div class="section-header"><div class="section-number">2</div><div class="section-label">통계 분석</div><div class="section-sublabel">Statistical Summary</div></div>`;
+    h += `<div class="stats-grid">`;
+    [...numericCols].slice(0, 6).forEach(k => {
+      const fv = v => v >= 1000 ? Math.round(v).toLocaleString('ko-KR') : (Number.isInteger(v) ? v : v.toFixed(1));
+      h += `<div class="stat-card"><div class="stat-card-header">${escapeHtml(k)}</div><div class="stat-card-grid">`;
+      h += `<div class="stat-item"><div class="stat-item-label">합계</div><div class="stat-item-value">${fv(totals[k])}</div></div>`;
+      h += `<div class="stat-item"><div class="stat-item-label">평균</div><div class="stat-item-value">${fv(avgs[k])}</div></div>`;
+      h += `<div class="stat-item"><div class="stat-item-label">최솟값</div><div class="stat-item-value">${fv(mins[k])}</div></div>`;
+      h += `<div class="stat-item"><div class="stat-item-label">최댓값</div><div class="stat-item-value">${fv(maxs[k])}</div></div>`;
+      h += `</div></div>`;
+    });
+    h += `</div>`;
+  }
+
+  // Section 4: 차트 영역 (캔버스 placeholder)
+  const hasCharts = (catEntries.length > 1 && catEntries.length <= 50) || (catNumEntries.length > 1);
+  if (hasCharts) {
+    h += `<div class="section-header"><div class="section-number">3</div><div class="section-label">데이터 시각화</div><div class="section-sublabel">Data Visualization</div></div>`;
+    h += `<div class="generic-charts">`;
+    if (catEntries.length > 1 && catEntries.length <= 50) {
+      h += `<div class="generic-chart-card"><div class="chart-title">${escapeHtml(catCol)} 분포</div><div class="chart-subtitle">카테고리별 데이터 건수</div><div class="chart-container"><canvas id="genPieChart"></canvas></div></div>`;
+    }
+    if (catNumEntries.length > 1 && firstNumCol) {
+      h += `<div class="generic-chart-card"><div class="chart-title">${escapeHtml(catCol)}별 ${escapeHtml(firstNumCol)}</div><div class="chart-subtitle">카테고리별 합계 비교</div><div class="chart-container"><canvas id="genBarChart"></canvas></div></div>`;
+    }
+    h += `</div>`;
+
+    // 두 번째 숫자 컬럼이 있으면 추가 차트
+    const numColArr = [...numericCols];
+    if (numColArr.length >= 2 && catCol) {
+      h += `<div class="generic-charts">`;
+      h += `<div class="generic-chart-card"><div class="chart-title">${escapeHtml(numColArr[0])} vs ${escapeHtml(numColArr[1])}</div><div class="chart-subtitle">두 지표 비교 (상위 10개)</div><div class="chart-container"><canvas id="genCompareChart"></canvas></div></div>`;
+      if (numColArr.length >= 3) {
+        h += `<div class="generic-chart-card"><div class="chart-title">${escapeHtml(numColArr[2])} 분포</div><div class="chart-subtitle">상위 항목별 비교</div><div class="chart-container"><canvas id="genThirdChart"></canvas></div></div>`;
+      }
+      h += `</div>`;
+    }
+  }
+
+  // Section 5: 데이터 테이블
+  const sectionNum = hasCharts ? 4 : 3;
+  h += `<div class="section-header"><div class="section-number">${sectionNum}</div><div class="section-label">상세 데이터</div><div class="section-sublabel">Detail Data Table</div></div>`;
   const maxRows = Math.min(data.length, 500);
-  h += `<div class="table-wrap"><table><thead><tr><th style="width:40px">#</th>`;
+  h += `<div class="chart-card full"><div class="table-wrap"><table><thead><tr><th style="width:40px">#</th>`;
   keys.forEach(k => { h += `<th>${escapeHtml(k)}</th>`; });
   h += `</tr></thead><tbody>`;
   for (let i = 0; i < maxRows; i++) {
-    h += `<tr><td style="color:var(--text-sub)">${i+1}</td>`;
+    h += `<tr><td style="color:var(--text-muted)">${i+1}</td>`;
     keys.forEach(k => {
       let val = data[i][k];
       if (val === null || val === undefined) val = '';
@@ -1195,23 +1410,83 @@ function renderGenericTable(data) {
     h += `</tr>`;
   }
   if (data.length > maxRows) {
-    h += `<tr><td colspan="${keys.length+1}" style="text-align:center;color:var(--text-sub);padding:12px;">… 외 ${(data.length-maxRows).toLocaleString()}행 (상위 ${maxRows}행만 표시)</td></tr>`;
+    h += `<tr><td colspan="${keys.length+1}" style="text-align:center;color:var(--text-muted);padding:12px;">… 외 ${(data.length-maxRows).toLocaleString()}행 (상위 ${maxRows}행만 표시)</td></tr>`;
   }
   if (numericCols.size > 0) {
-    h += `<tr style="font-weight:700;background:var(--bg-card);border-top:2px solid var(--border)"><td style="color:var(--text-sub)">합계</td>`;
+    h += `<tr style="font-weight:700;background:var(--surface-2);border-top:2px solid var(--border)"><td style="color:var(--text-muted)">합계</td>`;
     keys.forEach(k => {
       if (numericCols.has(k)) {
         const v = totals[k];
         h += `<td style="text-align:right">${v >= 1000 ? Math.round(v).toLocaleString('ko-KR') : (Number.isInteger(v) ? v : v.toFixed(2))}</td>`;
-      } else {
-        h += `<td></td>`;
-      }
+      } else { h += `<td></td>`; }
     });
     h += `</tr>`;
   }
-  h += `</tbody></table></div>`;
-  container.innerHTML = h;
-  dashboard.replaceChildren(container);
+  h += `</tbody></table></div></div>`;
+
+  dashboard.innerHTML = h;
+
+  // ── 차트 렌더링 (DOM에 삽입 후) ──
+  if (catEntries.length > 1 && catEntries.length <= 50 && document.getElementById('genPieChart')) {
+    const top = catEntries.slice(0, 10);
+    const others = catEntries.slice(10).reduce((s, e) => s + e[1], 0);
+    const labels = top.map(e => trunc(e[0], 16));
+    const values = top.map(e => e[1]);
+    if (others > 0) { labels.push('기타'); values.push(others); }
+    mkChart('genPieChart', {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: pieC.slice(0, values.length), borderWidth: 0, hoverOffset: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { color: '#6B7280', font: { size: 10, family: "'Noto Sans KR'" }, padding: 8, usePointStyle: true, pointStyle: 'circle' } } } }
+    });
+  }
+
+  if (catNumEntries.length > 1 && document.getElementById('genBarChart')) {
+    const top = catNumEntries.slice(0, 12);
+    mkChart('genBarChart', {
+      type: 'bar',
+      data: { labels: top.map(e => trunc(e[0], 14)), datasets: [{ label: firstNumCol, data: top.map(e => e[1]), backgroundColor: 'rgba(37,99,235,0.6)', borderRadius: 4 }] },
+      options: { ...chartOpts({ y: {} }), indexAxis: top.length > 6 ? 'y' : 'x', plugins: { legend: { display: false } } }
+    });
+  }
+
+  // 비교 차트 (두 숫자 컬럼)
+  const numColArr = [...numericCols];
+  if (numColArr.length >= 2 && catCol && document.getElementById('genCompareChart')) {
+    const groupMap = {};
+    data.forEach(r => {
+      const cat = String(r[catCol] || '').trim() || '(비어있음)';
+      if (!groupMap[cat]) groupMap[cat] = { a: 0, b: 0 };
+      groupMap[cat].a += parseNum(r[numColArr[0]]);
+      groupMap[cat].b += parseNum(r[numColArr[1]]);
+    });
+    const sorted = Object.entries(groupMap).sort((a, b) => b[1].a - a[1].a).slice(0, 10);
+    mkChart('genCompareChart', {
+      type: 'bar',
+      data: {
+        labels: sorted.map(e => trunc(e[0], 12)),
+        datasets: [
+          { label: numColArr[0], data: sorted.map(e => e[1].a), backgroundColor: 'rgba(37,99,235,0.5)', borderRadius: 3 },
+          { label: numColArr[1], data: sorted.map(e => e[1].b), backgroundColor: 'rgba(5,150,105,0.5)', borderRadius: 3 }
+        ]
+      },
+      options: chartOpts({ y: {} })
+    });
+  }
+
+  // 세 번째 숫자 컬럼 차트
+  if (numColArr.length >= 3 && catCol && document.getElementById('genThirdChart')) {
+    const groupMap3 = {};
+    data.forEach(r => {
+      const cat = String(r[catCol] || '').trim() || '(비어있음)';
+      groupMap3[cat] = (groupMap3[cat] || 0) + parseNum(r[numColArr[2]]);
+    });
+    const sorted3 = Object.entries(groupMap3).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    mkChart('genThirdChart', {
+      type: 'bar',
+      data: { labels: sorted3.map(e => trunc(e[0], 12)), datasets: [{ label: numColArr[2], data: sorted3.map(e => e[1]), backgroundColor: 'rgba(217,119,6,0.5)', borderRadius: 3 }] },
+      options: { ...chartOpts({ y: {} }), plugins: { legend: { display: false } } }
+    });
+  }
 }
 
 function renderDashboard() {
@@ -1380,11 +1655,169 @@ function renderDashboard() {
     document.getElementById('keywordTable').innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:12px;">키워드 데이터가 포함되어 있지 않습니다.</p>';
   }
 
+  // ── Funnel Visualization ──
+  renderFunnel(totals, ctr, cvr);
+
+  // ── Keyword Horizontal Bar Chart ──
+  if (kwEntries.length > 0) {
+    const topKw = kwEntries.slice(0, 10);
+    mkChart('chartKeywordBar', {
+      type: 'bar',
+      data: {
+        labels: topKw.map(e => trunc(e[0], 16)),
+        datasets: [
+          { label: '클릭수', data: topKw.map(e => e[1].clicks), backgroundColor: 'rgba(37,99,235,0.7)', borderRadius: 4 },
+          { label: '전환수', data: topKw.map(e => e[1].conversions), backgroundColor: 'rgba(5,150,105,0.7)', borderRadius: 4 }
+        ]
+      },
+      options: { ...chartOpts({ y: {} }), indexAxis: 'y' }
+    });
+  }
+
+  // ── Campaign Comparison Grouped Bar ──
+  if (campEntries.length > 0) {
+    const topCamp = campEntries.slice(0, 8);
+    const maxImp = Math.max(...topCamp.map(e => e[1].impressions));
+    const maxClick = Math.max(...topCamp.map(e => e[1].clicks));
+    const maxConv = Math.max(...topCamp.map(e => e[1].conversions), 1);
+    mkChart('chartCampaignCompare', {
+      type: 'bar',
+      data: {
+        labels: topCamp.map(e => trunc(e[0], 14)),
+        datasets: [
+          { label: '노출수 (정규화)', data: topCamp.map(e => maxImp ? (e[1].impressions/maxImp*100).toFixed(1) : 0), backgroundColor: 'rgba(37,99,235,0.25)', borderColor: 'rgba(37,99,235,0.6)', borderWidth: 1, borderRadius: 3 },
+          { label: '클릭수 (정규화)', data: topCamp.map(e => maxClick ? (e[1].clicks/maxClick*100).toFixed(1) : 0), backgroundColor: 'rgba(5,150,105,0.25)', borderColor: 'rgba(5,150,105,0.6)', borderWidth: 1, borderRadius: 3 },
+          { label: '전환수 (정규화)', data: topCamp.map(e => maxConv ? (e[1].conversions/maxConv*100).toFixed(1) : 0), backgroundColor: 'rgba(217,119,6,0.25)', borderColor: 'rgba(217,119,6,0.6)', borderWidth: 1, borderRadius: 3 }
+        ]
+      },
+      options: chartOpts({ y: { ticks: { callback: v => v + '%' } } })
+    });
+  }
+
+  // ── Efficiency Scatter (CPC vs CTR per campaign) ──
+  if (campEntries.length > 0) {
+    const scatterData = campEntries.filter(e => e[1].clicks > 0).slice(0, 15).map((e, i) => ({
+      x: e[1].clicks > 0 ? Math.round(e[1].cost / e[1].clicks) : 0,
+      y: e[1].impressions > 0 ? +(e[1].clicks / e[1].impressions * 100).toFixed(2) : 0,
+      label: trunc(e[0], 14)
+    }));
+    if (scatterData.length > 0) {
+      mkChart('chartScatter', {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: '캠페인',
+            data: scatterData,
+            backgroundColor: pieC.slice(0, scatterData.length).map(c => c + '88'),
+            borderColor: pieC.slice(0, scatterData.length),
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 12
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'CPC (원)', font: { size: 11, family: "'Noto Sans KR'" } }, grid: { color: '#F0F0F3' }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
+            y: { title: { display: true, text: 'CTR (%)', font: { size: 11, family: "'Noto Sans KR'" } }, grid: { color: '#F0F0F3' }, ticks: { color: '#9CA3AF', font: { size: 10 } } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff', titleColor: '#111', bodyColor: '#6B7280',
+              borderColor: '#E8E8EC', borderWidth: 1, padding: 10, cornerRadius: 6,
+              callbacks: {
+                title: ctx => ctx[0].raw.label,
+                label: ctx => `CPC: ₩${fmtN(ctx.raw.x)}  CTR: ${ctx.raw.y}%`
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // ── Cost vs Conversion Bubble Chart ──
+  if (campEntries.length > 0 && totals.conversions > 0) {
+    const bubbleData = campEntries.filter(e => e[1].cost > 0).slice(0, 10);
+    mkChart('chartCostConv', {
+      type: 'bar',
+      data: {
+        labels: bubbleData.map(e => trunc(e[0], 12)),
+        datasets: [
+          { label: '광고비 (만원)', data: bubbleData.map(e => Math.round(e[1].cost / 10000)), backgroundColor: 'rgba(225,29,72,0.2)', borderColor: 'rgba(225,29,72,0.6)', borderWidth: 1, borderRadius: 3, yAxisID: 'y' },
+          { label: '전환수', data: bubbleData.map(e => e[1].conversions), type: 'line', borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.05)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#059669', tension: 0.4, yAxisID: 'y1' }
+        ]
+      },
+      options: chartOpts({ y: { position: 'left', title: { display: true, text: '광고비 (만원)', font: { size: 10 } } }, y1: { position: 'right', grid: { display: false }, title: { display: true, text: '전환수', font: { size: 10 } } } })
+    });
+  } else if (campEntries.length > 0) {
+    // 전환 없으면 광고비 vs 클릭수
+    const barData = campEntries.filter(e => e[1].cost > 0).slice(0, 10);
+    mkChart('chartCostConv', {
+      type: 'bar',
+      data: {
+        labels: barData.map(e => trunc(e[0], 12)),
+        datasets: [
+          { label: '광고비 (만원)', data: barData.map(e => Math.round(e[1].cost / 10000)), backgroundColor: 'rgba(225,29,72,0.2)', borderColor: 'rgba(225,29,72,0.6)', borderWidth: 1, borderRadius: 3, yAxisID: 'y' },
+          { label: '클릭수', data: barData.map(e => e[1].clicks), type: 'line', borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.05)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#2563EB', tension: 0.4, yAxisID: 'y1' }
+        ]
+      },
+      options: chartOpts({ y: { position: 'left', title: { display: true, text: '광고비 (만원)', font: { size: 10 } } }, y1: { position: 'right', grid: { display: false }, title: { display: true, text: '클릭수', font: { size: 10 } } } })
+    });
+  }
+
   // Insights
   const insights = genInsights(totals, ctr, cpc, cpa, roas, cvr, campEntries, kwEntries, uniqueDates);
   document.getElementById('insightsGrid').innerHTML = insights.map(ins =>
     `<div class="insight-card"><div class="insight-dot ${ins.color}"></div><div class="insight-title">${ins.title}</div><div class="insight-body">${ins.body}</div></div>`
   ).join('');
+}
+
+// ── Funnel Visualization ──
+function renderFunnel(totals, ctr, cvr) {
+  const el = document.getElementById('funnelViz');
+  if (!el) return;
+  const maxVal = Math.max(totals.impressions, 1);
+  const impW = 100;
+  const clickW = totals.impressions > 0 ? Math.max((totals.clicks / totals.impressions) * 100, 5) : 5;
+  const convW = totals.impressions > 0 ? Math.max((totals.conversions / totals.impressions) * 100, 3) : 3;
+
+  let h = '';
+  // Impression bar
+  h += `<div class="funnel-bar-row">`;
+  h += `<div class="funnel-label">노출수</div>`;
+  h += `<div class="funnel-bar-track"><div class="funnel-bar-fill imp" style="width:${impW}%"><span class="funnel-bar-value">${fmtN(totals.impressions)}</span></div></div>`;
+  h += `</div>`;
+  h += `<div class="funnel-arrow"><span>↓</span> CTR ${ctr.toFixed(2)}%</div>`;
+  // Click bar
+  h += `<div class="funnel-bar-row">`;
+  h += `<div class="funnel-label">클릭수</div>`;
+  h += `<div class="funnel-bar-track"><div class="funnel-bar-fill click" style="width:${clickW}%"><span class="funnel-bar-value">${fmtN(totals.clicks)}</span></div></div>`;
+  h += `</div>`;
+  if (totals.conversions > 0) {
+    h += `<div class="funnel-arrow"><span>↓</span> CVR ${cvr.toFixed(2)}%</div>`;
+    h += `<div class="funnel-bar-row">`;
+    h += `<div class="funnel-label">전환수</div>`;
+    h += `<div class="funnel-bar-track"><div class="funnel-bar-fill conv" style="width:${Math.max(convW, 3)}%"><span class="funnel-bar-value">${fmtN(totals.conversions)}</span></div></div>`;
+    h += `</div>`;
+  }
+
+  // Summary stats
+  h += `<div class="funnel-summary">`;
+  h += `<div class="funnel-stat"><div class="funnel-stat-label">노출 → 클릭 전환율</div><div class="funnel-stat-value">${ctr.toFixed(2)}%</div><div class="funnel-stat-sub">${fmtN(totals.impressions)}회 중 ${fmtN(totals.clicks)}회 클릭</div></div>`;
+  if (totals.conversions > 0) {
+    h += `<div class="funnel-stat"><div class="funnel-stat-label">클릭 → 전환 전환율</div><div class="funnel-stat-value">${cvr.toFixed(2)}%</div><div class="funnel-stat-sub">${fmtN(totals.clicks)}회 중 ${fmtN(totals.conversions)}건 전환</div></div>`;
+    const overallCvr = totals.impressions > 0 ? (totals.conversions / totals.impressions * 100) : 0;
+    h += `<div class="funnel-stat"><div class="funnel-stat-label">전체 전환율 (노출→전환)</div><div class="funnel-stat-value">${overallCvr.toFixed(4)}%</div><div class="funnel-stat-sub">${fmtN(totals.impressions)}회 노출 중 ${fmtN(totals.conversions)}건</div></div>`;
+  }
+  if (totals.cost > 0) {
+    const costPerImp = (totals.cost / totals.impressions * 1000);
+    h += `<div class="funnel-stat"><div class="funnel-stat-label">CPM (1,000노출당 비용)</div><div class="funnel-stat-value">₩${fmtN(Math.round(costPerImp))}</div><div class="funnel-stat-sub">효율적 노출 비용 지표</div></div>`;
+  }
+  h += `</div>`;
+
+  el.innerHTML = h;
 }
 
 function renderExecSummary(totals, ctr, cpc, cpa, roas, cvr, dates) {
