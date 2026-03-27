@@ -849,13 +849,15 @@ function scoreHeaderRow(row) {
   if (!row || !Array.isArray(row)) return 0;
   const nonEmpty = row.filter(c => c !== '' && c !== null && c !== undefined);
   if (nonEmpty.length < 2) return 0;
-  const cellTexts = row.map(c => String(c||'').trim().replace(/[\s\n\r]+/g,'').toLowerCase());
+  // 셀 내 줄바꿈/특수문자 제거 후 정규화
+  const cellTexts = row.map(c => String(c||'').trim().replace(/[\s\n\r\u00A0]+/g,'').replace(/\(.*?\)/g,'').toLowerCase());
   // 알려진 키워드 매칭 점수
   let knownMatch = 0;
   for (const t of cellTexts) {
     if (!t) continue;
     for (const kw of KNOWN_HEADER_KEYWORDS) {
-      if (t.includes(kw.toLowerCase().replace(/[\s]/g,''))) { knownMatch++; break; }
+      const nkw = kw.toLowerCase().replace(/[\s]/g,'');
+      if (t.includes(nkw) || nkw.includes(t) && t.length >= 2) { knownMatch++; break; }
     }
   }
   // 텍스트 비율 점수: 헤더는 대부분 텍스트, 데이터 행은 숫자가 많음
@@ -967,19 +969,42 @@ function parseFile(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
           const allRows = [];
           wb.SheetNames.forEach(name => {
             const ws = wb.Sheets[name];
-            const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            // 병합 셀 해제
+            if (ws['!merges']) {
+              ws['!merges'].forEach(merge => {
+                const val = ws[XLSX.utils.encode_cell(merge.s)];
+                if (val) {
+                  for (let r = merge.s.r; r <= merge.e.r; r++) {
+                    for (let c = merge.s.c; c <= merge.e.c; c++) {
+                      const addr = XLSX.utils.encode_cell({r, c});
+                      if (!ws[addr]) ws[addr] = {...val};
+                    }
+                  }
+                }
+              });
+            }
+            const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
             if (!rawRows || rawRows.length === 0) return;
-            const headerIdx = findHeaderRow(rawRows, 30);
-            extractDateRanges(rawRows, headerIdx);
-            if (headerIdx >= 0 && rawRows[headerIdx]) {
-              allRows.push(...rowsToObjects(rawRows, headerIdx));
+            // 완전히 빈 행 제거
+            const cleanRows = rawRows.filter(row => Array.isArray(row) && row.some(c => c !== '' && c !== null && c !== undefined));
+            if (cleanRows.length === 0) return;
+            console.log('[XCOM] 시트:', name, '행수:', cleanRows.length, '첫행:', cleanRows[0]);
+            const headerIdx = findHeaderRow(cleanRows, 50);
+            extractDateRanges(cleanRows, headerIdx);
+            if (headerIdx >= 0 && cleanRows[headerIdx]) {
+              const objs = rowsToObjects(cleanRows, headerIdx);
+              if (objs.length > 0) {
+                allRows.push(...objs);
+              } else {
+                allRows.push(...XLSX.utils.sheet_to_json(ws, { defval: '', raw: false }));
+              }
             } else {
               // 최종 폴백: 라이브러리 기본 파싱
-              allRows.push(...XLSX.utils.sheet_to_json(ws, { defval: '' }));
+              allRows.push(...XLSX.utils.sheet_to_json(ws, { defval: '', raw: false }));
             }
           });
           resolve(allRows);
@@ -990,7 +1015,7 @@ function parseFile(file) {
   });
 }
 
-function normalizeKey(k) { return (k||'').toString().trim().replace(/[\s\n\r]+/g,'').replace(/[()（）\[\]\u00A0]/g,'').toLowerCase(); }
+function normalizeKey(k) { return (k||'').toString().trim().replace(/[\s\n\r\u00A0]+/g,'').replace(/[()（）\[\]\/\\]/g,'').toLowerCase(); }
 
 function mapColumns(data) {
   if (!data.length) return [];
