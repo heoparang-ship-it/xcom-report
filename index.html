@@ -1020,7 +1020,7 @@ function parseFile(file) {
   });
 }
 
-function normalizeKey(k) { return (k||'').toString().trim().replace(/[\s\n\r\u00A0]+/g,'').replace(/[()（）\[\]\/\\]/g,'').toLowerCase(); }
+function normalizeKey(k) { return (k||'').toString().trim().replace(/[\s\n\r\u00A0]+/g,'').replace(/[()（）\[\]\/\\,，]/g,'').toLowerCase(); }
 
 function mapColumns(data) {
   if (!data.length) return [];
@@ -1141,7 +1141,17 @@ function renderGenericTable(data) {
   keys.forEach(k => {
     const sample = data.slice(0, 10).map(r => r[k]);
     const numCount = sample.filter(v => { const s = String(v||'').replace(/[,%₩원\s\u00A0-]/g,'').trim(); return s && !isNaN(s); }).length;
-    if (numCount >= sample.length * 0.5) numericCols.add(k);
+    if (numCount >= sample.length * 0.5) {
+      // 연도/날짜/ID성 컬럼은 합산에서 제외
+      const nk = k.toLowerCase().replace(/[\s]/g,'');
+      const isDateLike = /년|year|월|month|일자|날짜|date|입사|생년|퇴사|등록일|수정일|기간/.test(nk);
+      const vals = sample.map(v => parseNum(v)).filter(v => v > 0);
+      const isYearRange = vals.length > 0 && vals.every(v => v >= 1900 && v <= 2100);
+      const isIdLike = /번호|id|코드|code|순번/.test(nk);
+      if (!isDateLike && !isYearRange && !isIdLike) {
+        numericCols.add(k);
+      }
+    }
   });
   const totals = {};
   numericCols.forEach(k => { totals[k] = 0; });
