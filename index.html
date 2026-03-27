@@ -593,6 +593,8 @@ tbody tr:hover { background: var(--surface-2); }
 <script>
 let uploadedFiles = [];
 let allData = [];
+let allRawData = [];
+let isAdReport = false;
 let chartInstances = [];
 let fileDateRanges = [];
 
@@ -1061,8 +1063,12 @@ function mapColumns(data) {
   }
   console.log('[XCOM] 컬럼 매핑:', JSON.stringify(mapping));
   console.log('[XCOM] 원본 헤더:', sampleKeys);
-  if (Object.keys(mapping).length === 0) {
-    console.warn('[XCOM] 컬럼 매핑 실패! 원본 데이터를 그대로 반환합니다.');
+  const adFields = ['impressions','clicks','cost'].filter(f => mapping[f]);
+  if (adFields.length >= 2) {
+    isAdReport = true;
+  } else {
+    isAdReport = false;
+    console.warn('[XCOM] 광고 지표 매핑 부족 (' + adFields.length + '개). 범용 테이블 모드로 전환합니다.');
     return data;
   }
   return data.map(row => {
@@ -1094,25 +1100,108 @@ async function startAnalysis() {
   document.getElementById('uploadSection').style.display = 'none';
   document.getElementById('loadingSection').style.display = 'block';
   allData = [];
+  allRawData = [];
   fileDateRanges = [];
+  isAdReport = false;
   for (const file of uploadedFiles) {
     try {
       const raw = await parseFile(file);
       console.log('[XCOM] 파싱 원본 데이터:', raw.length, '행');
       if (raw.length > 0) console.log('[XCOM] 첫 행 컬럼:', Object.keys(raw[0]));
+      allRawData.push(...raw);
       const mapped = mapColumns(raw);
-      console.log('[XCOM] 매핑 결과:', mapped.length, '행');
+      console.log('[XCOM] 매핑 결과:', mapped.length, '행, 광고모드:', isAdReport);
       if (mapped.length > 0) console.log('[XCOM] 매핑 샘플:', mapped[0]);
       allData.push(...mapped);
     } catch(e) { console.error('[XCOM] 파싱 에러:', e); }
   }
   await new Promise(r => setTimeout(r, 600));
-  if (allData.length === 0) { alert('데이터를 읽을 수 없습니다.\n\n지원 형식: 네이버 검색광고 보고서 (CSV, XLSX)\n\n콘솔(F12)에서 상세 로그를 확인할 수 있습니다.'); resetAll(); return; }
+  // 광고 데이터도 없고 원본 데이터도 없으면 에러
+  if (allData.length === 0 && allRawData.length === 0) { alert('데이터를 읽을 수 없습니다.\n파일이 비어있거나 형식을 인식할 수 없습니다.'); resetAll(); return; }
   document.getElementById('loadingSection').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('headerActions').style.display = 'flex';
   document.getElementById('watermark').style.display = 'block';
-  renderDashboard();
+  if (isAdReport && allData.length > 0) {
+    renderDashboard();
+  } else {
+    // 범용 데이터 테이블 모드
+    const displayData = allRawData.length > 0 ? allRawData : allData;
+    renderGenericTable(displayData);
+  }
+}
+
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function renderGenericTable(data) {
+  if (!data || data.length === 0) return;
+  const dashboard = document.getElementById('dashboard');
+  const keys = Object.keys(data[0]);
+  const numericCols = new Set();
+  keys.forEach(k => {
+    const sample = data.slice(0, 10).map(r => r[k]);
+    const numCount = sample.filter(v => { const s = String(v||'').replace(/[,%₩원\s\u00A0-]/g,'').trim(); return s && !isNaN(s); }).length;
+    if (numCount >= sample.length * 0.5) numericCols.add(k);
+  });
+  const totals = {};
+  numericCols.forEach(k => { totals[k] = 0; });
+  data.forEach(r => { numericCols.forEach(k => { totals[k] += parseNum(r[k]); }); });
+
+  const fileName = uploadedFiles.map(f => f.name).join(', ');
+  const container = document.createElement('div');
+  container.className = 'section no-break';
+
+  let h = `<h2 style="margin-bottom:4px;">데이터 분석 결과</h2>`;
+  h += `<p style="color:var(--text-sub);margin-bottom:16px;font-size:13px;">${escapeHtml(fileName)} · ${data.length.toLocaleString()}행 · ${keys.length}개 컬럼</p>`;
+
+  if (numericCols.size > 0) {
+    h += `<div class="kpi-grid" style="margin-bottom:20px;">`;
+    [...numericCols].slice(0, 8).forEach(k => {
+      const v = totals[k];
+      const display = v >= 1000 ? Math.round(v).toLocaleString('ko-KR') : (Number.isInteger(v) ? v : v.toFixed(2));
+      h += `<div class="kpi-card"><div class="kpi-label">${escapeHtml(k)}</div><div class="kpi-value">${display}</div><div class="kpi-tag tag-stable">합계</div></div>`;
+    });
+    h += `</div>`;
+  }
+
+  const maxRows = Math.min(data.length, 500);
+  h += `<div class="table-wrap"><table><thead><tr><th style="width:40px">#</th>`;
+  keys.forEach(k => { h += `<th>${escapeHtml(k)}</th>`; });
+  h += `</tr></thead><tbody>`;
+  for (let i = 0; i < maxRows; i++) {
+    h += `<tr><td style="color:var(--text-sub)">${i+1}</td>`;
+    keys.forEach(k => {
+      let val = data[i][k];
+      if (val === null || val === undefined) val = '';
+      if (numericCols.has(k) && val !== '') {
+        const n = parseNum(val);
+        val = n >= 1000 ? Math.round(n).toLocaleString('ko-KR') : (Number.isInteger(n) ? n : n.toFixed(2));
+        h += `<td style="text-align:right">${val}</td>`;
+      } else {
+        const sv = String(val).length > 40 ? String(val).slice(0,40)+'…' : String(val);
+        h += `<td>${escapeHtml(sv)}</td>`;
+      }
+    });
+    h += `</tr>`;
+  }
+  if (data.length > maxRows) {
+    h += `<tr><td colspan="${keys.length+1}" style="text-align:center;color:var(--text-sub);padding:12px;">… 외 ${(data.length-maxRows).toLocaleString()}행 (상위 ${maxRows}행만 표시)</td></tr>`;
+  }
+  if (numericCols.size > 0) {
+    h += `<tr style="font-weight:700;background:var(--bg-card);border-top:2px solid var(--border)"><td style="color:var(--text-sub)">합계</td>`;
+    keys.forEach(k => {
+      if (numericCols.has(k)) {
+        const v = totals[k];
+        h += `<td style="text-align:right">${v >= 1000 ? Math.round(v).toLocaleString('ko-KR') : (Number.isInteger(v) ? v : v.toFixed(2))}</td>`;
+      } else {
+        h += `<td></td>`;
+      }
+    });
+    h += `</tr>`;
+  }
+  h += `</tbody></table></div>`;
+  container.innerHTML = h;
+  dashboard.replaceChildren(container);
 }
 
 function renderDashboard() {
@@ -1540,7 +1629,7 @@ function chartOpts(scales) {
 }
 
 function resetAll() {
-  uploadedFiles = []; allData = []; fileDateRanges = [];
+  uploadedFiles = []; allData = []; allRawData = []; fileDateRanges = []; isAdReport = false;
   chartInstances.forEach(c => c.destroy()); chartInstances = [];
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loadingSection').style.display = 'none';
